@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
 export default defineConfig({
-  base: './', // ✅ Relative paths for GitHub Pages and Live Server
+  base: '/Heartspace/', // ✅ Relative paths for GitHub Pages and Live Server
   plugins: [react()],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
