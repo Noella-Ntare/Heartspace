@@ -1,1 +1,1 @@
-HeArtSpace is a Art for Healing platform
+HeArtSpace is an Art for Healing platform
