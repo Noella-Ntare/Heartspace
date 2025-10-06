@@ -17,7 +17,7 @@ import {
   Send,
   Sparkles
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface CommunityProps {
   onNavigate: (page: 'dashboard' | 'programs' | 'community' | 'gallery') => void;
