@@ -1,4 +1,30 @@
-// State Management
+// You don't need to import anything because compat scripts are loaded in HTML
+
+// Example: sign up a user
+const signupForm = document.getElementById("auth-form");
+signupForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  auth.createUserWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      console.log("User signed up:", user.uid);
+
+      // Optional: create user document in Firestore
+      return db.collection("users").doc(user.uid).set({
+        email: user.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    })
+    .catch((error) => {
+      console.error("Error signing up:", error.message);
+    });
+});
+
+//State Management
 let currentPage = 'landing';
 let isLoggedIn = false;
 let isLoginMode = true;
@@ -927,3 +953,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+
+
+function signUp(email, password, username) {
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(userCredential => {
+      // Save user info in Firestore
+      return db.collection('users').doc(userCredential.user.uid).set({
+        username: username,
+        email: email,
+        avatarUrl: ''
+      });
+    })
+    .then(() => console.log('User registered!'))
+    .catch(err => console.error(err));
+}
+
+// ---- LOGIN ----
+function logIn(email, password) {
+  auth.signInWithEmailAndPassword(email, password)
+    .then(userCredential => console.log('Logged in:', userCredential.user))
+    .catch(err => console.error(err));
+}
+
+// ---- POST ARTWORK ----
+async function postArtwork(file, title, description) {
+  const storageRef = storage.ref('artworks/' + file.name);
+  await storageRef.put(file);
+  const imageUrl = await storageRef.getDownloadURL();
+
+  await db.collection('artworks').add({
+    authorId: auth.currentUser.uid,
+    title: title,
+    description: description,
+    imageUrl: imageUrl,
+    likes: [],
+    comments: [],
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  console.log('Artwork posted!');
+}
+
+// ---- DISPLAY GALLERY ----
+db.collection('artworks').orderBy('createdAt', 'desc')
+  .onSnapshot(snapshot => {
+    snapshot.docs.forEach(doc => {
+      const art = doc.data();
+      console.log(art.title, art.imageUrl);
+      // Insert into your HTML gallery
+    });
+  });
+
+  
