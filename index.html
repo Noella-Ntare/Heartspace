@@ -205,7 +205,19 @@
               </button>
             </div>
           </div>
-          <div class="avatar">JD</div>
+
+          <div class="nav-user">
+  <div id="nav-avatar" class="avatar clickable">JD</div>
+
+  <!-- Hidden dropdown -->
+  <div id="profile-dropdown" class="dropdown hidden">
+    <p id="dropdown-name" class="dropdown-name">User Name</p>
+    <a href="profile.html" class="dropdown-link">View Profile</a>
+    <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
+  </div>
+</div>
+
+
         </div>
       </div>
     </nav>
@@ -213,7 +225,7 @@
     <div class="container py-8 px-4">
       <!-- Welcome Section -->
       <div class="mb-8 fade-in-up">
-        <h1 class="mb-2">Welcome back, Jordan! 🌟</h1>
+        <h1 class="mb-2">Welcome back, <span id="display-name">User</span>! 🌟</h1>
         <p class="text-muted-foreground">
           You're making amazing progress on your journey. Keep going!
         </p>
@@ -338,8 +350,8 @@
         <div class="dashboard-sidebar">
           <!-- Profile Card -->
           <div class="card profile-card">
-            <div class="avatar-large">JD</div>
-            <h3 class="mb-1">Jordan Davis</h3>
+            <div id="profile-avatar-large" class="avatar-large">JD</div>
+            <h3 id="profile-name" class="mb-1">Jordan Davis</h3>
             <p class="text-sm text-muted-foreground mb-4">Healing Journey Explorer</p>
             <div class="badge mb-4">Level 5 Seeker</div>
             <button class="btn btn-outline w-full">Edit Profile</button>
@@ -408,13 +420,13 @@
   <div id="toast" class="toast"></div>
 
   
-<!-- Firebase SDKs -->
+<!-- Firebase SDKs (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-storage-compat.js"></script>
 
-<!-- ✅ Initialize Firebase (Place this ABOVE script.js) -->
+<!-- Firebase init (must be BEFORE any script that uses auth/db) -->
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBFi-wN9TMWts8v908iobFLapIgTD0zTlg",
@@ -426,10 +438,9 @@
     measurementId: "G-1GM9VFJNCV"
   };
 
-  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
 
-  // Make Firebase services available globally
+  // globals used by scripts
   const auth = firebase.auth();
   const db = firebase.firestore();
   const storage = firebase.storage();
@@ -437,12 +448,13 @@
   console.log("✅ Firebase initialized successfully");
 </script>
 
-  <script src="script.js"></script>
-  <script src="/scripts/toast.js"></script>
-  <script src="/scripts/auth.js"></script>
-  <script src="/scripts/community.js"></script>
-  <script src="/scripts/gallery.js"></script>
-  <script src="/scripts/ui.js"></script>
+<!-- App scripts (in this order) -->
+<script src="scripts/toast.js"></script>
+<script src="scripts/auth.js"></script>
+<script src="scripts/community.js"></script>
+<script src="scripts/gallery.js"></script>
+<script src="scripts/ui.js"></script>
+<script src="script.js"></script>
 
 </body>
 </html>
