@@ -26,7 +26,6 @@ signupForm.addEventListener("submit", (e) => {
 
 //State Management
 let currentPage = 'landing';
-let isLoggedIn = false;
 let isLoginMode = true;
 let likedPosts = new Set();
 let likedArt = new Set();
