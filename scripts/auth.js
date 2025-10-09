@@ -154,3 +154,6 @@ if (logoutBtn) {
   });
 }
 
+function renderNav() {
+  console.log("Navigation updated (placeholder)");
+}
