@@ -32,22 +32,43 @@ function handleSignup() {
     .then(async (userCredential) => {
       const user = userCredential.user;
 
-      // Store the name in Firestore under "users" collection
-      await db.collection("users").doc(user.uid).set({
+      // 1️⃣ Update Firebase Auth profile with name
+    return user.updateProfile({
+      displayName: name
+    }).then(() => {
+      // 2️⃣ Save name + email to Firestore (optional but nice)
+      return db.collection("users").doc(user.uid).set({
         name: name,
-        email: user.email
+        email: email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-
-      isLoggedIn = true;
-      updateAuthModal(); // Hide modal
-      toast("Signup successful!", "success");
-
-      // Update name in UI
-      setUserNameInUI(name);
-    })
-    .catch((error) => {
-      toast(error.message, "error");
     });
+  })
+  .then(() => {
+    console.log("User registered with name:", name);
+    showToast(`Welcome, ${name}! 🌿`);
+  })
+  .catch((error) => {
+    console.error("Signup error:", error);
+    showToast("Signup failed: " + error.message, "error");
+  });
+  
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    const displayName = user.displayName || "Guest";
+
+    document.getElementById("display-name").textContent = displayName;
+    document.getElementById("dropdown-name").textContent = displayName;
+
+    // Also update avatar initials
+    const initials = displayName
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase();
+    document.getElementById("nav-avatar").textContent = initials;
+  }
+});
 }
 
 // Login function
