@@ -6,10 +6,15 @@ auth.onAuthStateChanged(async (user) => {
   isLoggedIn = !!user;
 
   if (user) {
-    // Fetch user info from Firestore on refresh
-    const docSnap = await db.collection("users").doc(user.uid).get();
-    const userName = docSnap.exists ? docSnap.data().name : "User";
-    setUserNameInUI(userName);
+    try {
+      // Fetch user info from Firestore (for display name)
+      const docSnap = await db.collection("users").doc(user.uid).get();
+      const userName = docSnap.exists ? docSnap.data().name : user.displayName || "User";
+      setUserNameInUI(userName);
+    } catch (err) {
+      console.error("Error fetching user info:", err);
+      setUserNameInUI(user.displayName || "User");
+    }
   } else {
     setUserNameInUI("Guest");
   }
@@ -17,7 +22,9 @@ auth.onAuthStateChanged(async (user) => {
   renderNav(); // Update navigation UI based on login
 });
 
+// -------------------------------
 // Signup function
+// -------------------------------
 function handleSignup() {
   const email = document.getElementById("signupEmail").value;
   const password = document.getElementById("signupPassword").value;
@@ -33,45 +40,31 @@ function handleSignup() {
       const user = userCredential.user;
 
       // 1️⃣ Update Firebase Auth profile with name
-    return user.updateProfile({
-      displayName: name
-    }).then(() => {
-      // 2️⃣ Save name + email to Firestore (optional but nice)
-      return db.collection("users").doc(user.uid).set({
-        name: name,
-        email: email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      await user.updateProfile({ displayName: name });
+
+      // 2️⃣ Save name + email to Firestore
+      await db.collection("users").doc(user.uid).set({
+        name,
+        email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+
+      console.log("User registered with name:", name);
+      showToast(`Welcome, ${name}! 🌿`);
+
+      // 🔁 Force reload to ensure displayName is updated in Auth state
+      await auth.currentUser.reload();
+      setUserNameInUI(name);
+    })
+    .catch((error) => {
+      console.error("Signup error:", error);
+      showToast("Signup failed: " + error.message, "error");
     });
-  })
-  .then(() => {
-    console.log("User registered with name:", name);
-    showToast(`Welcome, ${name}! 🌿`);
-  })
-  .catch((error) => {
-    console.error("Signup error:", error);
-    showToast("Signup failed: " + error.message, "error");
-  });
-  
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    const displayName = user.displayName || "Guest";
-
-    document.getElementById("display-name").textContent = displayName;
-    document.getElementById("dropdown-name").textContent = displayName;
-
-    // Also update avatar initials
-    const initials = displayName
-      .split(" ")
-      .map(n => n[0])
-      .join("")
-      .toUpperCase();
-    document.getElementById("nav-avatar").textContent = initials;
-  }
-});
 }
 
+// -------------------------------
 // Login function
+// -------------------------------
 function handleLogin() {
   const email = document.getElementById("loginEmail").value;
   const password = document.getElementById("loginPassword").value;
@@ -85,13 +78,10 @@ function handleLogin() {
     .then(async (userCredential) => {
       const user = userCredential.user;
 
-      // Fetch name from Firestore
       const docSnap = await db.collection("users").doc(user.uid).get();
-      const userName = docSnap.exists ? docSnap.data().name : "User";
+      const userName = docSnap.exists ? docSnap.data().name : user.displayName || "User";
 
-      // Update UI
       setUserNameInUI(userName);
-
       isLoggedIn = true;
       updateAuthModal();
       toast("Logged in successfully!", "success");
@@ -101,77 +91,83 @@ function handleLogin() {
     });
 }
 
+// -------------------------------
 // Logout function
+// -------------------------------
 function handleLogout() {
-  auth.signOut().then(() => {
-    isLoggedIn = false;
-    toast("Logged out successfully", "success");
-    navigate("home"); // Redirect to home page
-  });
+  auth.signOut()
+    .then(() => {
+      isLoggedIn = false;
+      toast("Logged out successfully", "success");
+      window.location.href = "index.html"; // Redirect to landing page
+    })
+    .catch((error) => {
+      console.error("Logout error:", error);
+      toast("Error logging out: " + error.message, "error");
+    });
 }
 
+// -------------------------------
 // Update displayed name and avatars
+// -------------------------------
 function setUserNameInUI(name) {
-  const displayEl = document.getElementById('display-name');
-  const profileEl = document.getElementById('profile-name');
-  const navAvatarEl = document.getElementById('nav-avatar');
-  const profileAvatarEl = document.getElementById('profile-avatar-large');
+  const displayEl = document.getElementById("display-name");
+  const profileEl = document.getElementById("profile-name");
+  const navAvatarEl = document.getElementById("nav-avatar");
+  const profileAvatarEl = document.getElementById("profile-avatar-large");
 
-  if (displayEl) displayEl.textContent = name || 'Guest';
-  if (profileEl) profileEl.textContent = name || 'Guest';
+  if (displayEl) displayEl.textContent = name || "Guest";
+  if (profileEl) profileEl.textContent = name || "Guest";
 
-  const initials = (name || 'JD').split(' ')
-    .map(s => s[0] || '')
-    .join('')
+  const initials = (name || "JD")
+    .split(" ")
+    .map((s) => s[0] || "")
+    .join("")
     .slice(0, 2)
     .toUpperCase();
 
-  if (navAvatarEl) navAvatarEl.textContent = initials || 'JD';
-  if (profileAvatarEl) profileAvatarEl.textContent = initials || 'JD';
+  if (navAvatarEl) navAvatarEl.textContent = initials || "JD";
+  if (profileAvatarEl) profileAvatarEl.textContent = initials || "JD";
 }
 
 // -------------------------------
 // Avatar dropdown logic
 // -------------------------------
+const avatarEl = document.getElementById("nav-avatar");
+const dropdownEl = document.getElementById("profile-dropdown");
+const logoutBtn = document.getElementById("logout-btn");
 
-// Elements
-const avatarEl = document.getElementById('nav-avatar');
-const dropdownEl = document.getElementById('profile-dropdown');
-const logoutBtn = document.getElementById('logout-btn');
-
-// Toggle dropdown visibility when avatar is clicked
+// Toggle dropdown
 if (avatarEl && dropdownEl) {
-  avatarEl.addEventListener('click', (e) => {
+  avatarEl.addEventListener("click", (e) => {
     e.stopPropagation();
-    dropdownEl.classList.toggle('hidden');
+    dropdownEl.classList.toggle("hidden");
   });
 
-  // Close dropdown if clicking outside
-  document.addEventListener('click', (e) => {
+  document.addEventListener("click", (e) => {
     if (!avatarEl.contains(e.target) && !dropdownEl.contains(e.target)) {
-      dropdownEl.classList.add('hidden');
+      dropdownEl.classList.add("hidden");
     }
   });
 }
 
-// Update name inside dropdown
 function updateDropdownName(name) {
-  const nameEl = document.getElementById('dropdown-name');
-  if (nameEl) nameEl.textContent = name || 'Guest';
+  const nameEl = document.getElementById("dropdown-name");
+  if (nameEl) nameEl.textContent = name || "Guest";
 }
 
-// Modify existing setUserNameInUI to also update dropdown
+// Extend setUserNameInUI to also update dropdown
 const originalSetUserNameInUI = setUserNameInUI;
-setUserNameInUI = function(name) {
+setUserNameInUI = function (name) {
   originalSetUserNameInUI(name);
   updateDropdownName(name);
 };
 
 // Logout from dropdown
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
+  logoutBtn.addEventListener("click", () => {
     handleLogout();
-    dropdownEl.classList.add('hidden');
+    if (dropdownEl) dropdownEl.classList.add("hidden");
   });
 }
 
