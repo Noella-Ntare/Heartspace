@@ -38,12 +38,12 @@ auth.onAuthStateChanged(async (user) => {
 // Signup function
 // -------------------------------
 function handleSignup() {
-  const email = document.getElementById("signupEmail").value;
-  const password = document.getElementById("signupPassword").value;
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
   const name = document.getElementById("name").value;
 
   if (!email || !password) {
-    toast("Email and password cannot be empty", "error");
+    showToast("Email and password cannot be empty", "error");
     return;
   }
 
@@ -78,11 +78,11 @@ function handleSignup() {
 // Login function
 // -------------------------------
 function handleLogin() {
-  const email = document.getElementById("loginEmail").value;
-  const password = document.getElementById("loginPassword").value;
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
 
   if (!email || !password) {
-    toast("Email and password cannot be empty", "error");
+    showToast("Email and password cannot be empty", "error");
     return;
   }
 
@@ -96,10 +96,10 @@ function handleLogin() {
       setUserNameInUI(userName);
       isLoggedIn = true;
       updateAuthModal();
-      toast("Logged in successfully!", "success");
+      showToast("Logged in successfully!", "success");
     })
     .catch((error) => {
-      toast(error.message, "error");
+      showToast(error.message, "error");
     });
 }
 
@@ -110,12 +110,12 @@ function handleLogout() {
   auth.signOut()
     .then(() => {
       isLoggedIn = false;
-      toast("Logged out successfully", "success");
+      showToast("Logged out successfully", "success");
       window.location.href = "index.html"; // Redirect to landing page
     })
     .catch((error) => {
       console.error("Logout error:", error);
-      toast("Error logging out: " + error.message, "error");
+      showToast("Error logging out: " + error.message, "error");
     });
 }
 

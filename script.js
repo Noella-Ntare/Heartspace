@@ -930,14 +930,17 @@ function handleShareArt() {
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Auth form
-  const authForm = document.getElementById('auth-form');
-  authForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    showToast('Welcome to the community!');
-    hideAuth();
-    isLoggedIn = true;
-    navigate('dashboard');
-  });
+  // Fixed version:
+const authForm = document.getElementById('auth-form');
+authForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  
+  if (isLoginMode) {
+    handleLogin();
+  } else {
+    handleSignup();
+  }
+});
 
   // Auth toggle
   document.getElementById('auth-toggle').addEventListener('click', () => {
