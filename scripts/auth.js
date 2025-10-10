@@ -20,6 +20,18 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   renderNav(); // Update navigation UI based on login
+
+    if (user) {
+    // If user is logged in, show the dashboard or main page
+    renderProgramsPage(); // or renderDashboard();
+  } else {
+    // If logged out, show landing page
+    // (optional — if your landing page is index.html)
+    if (window.location.pathname !== "/index.html") {
+      window.location.href = "index.html";
+    }
+  }
+
 });
 
 // -------------------------------

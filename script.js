@@ -399,7 +399,7 @@ function renderProgramsPage() {
                 </button>
               </div>
             </div>
-            <div class="avatar">JD</div>
+            <div class="avatar" id="user-avatar"></div>
           </div>
         </div>
       </nav>
@@ -581,7 +581,7 @@ function renderCommunityPage() {
                 </button>
               </div>
             </div>
-            <div class="avatar">JD</div>
+            <div class="avatar" id="user-avatar"></div>
           </div>
         </div>
       </nav>
@@ -621,7 +621,7 @@ function renderCommunityPage() {
         <!-- Create Post -->
         <div class="create-post-card fade-in-up">
           <div class="post-form">
-            <div class="avatar">JD</div>
+            <div class="avatar" id="user-avatar"></div>
             <div style="flex: 1;">
               <textarea 
                 id="new-post-textarea" 
@@ -782,7 +782,7 @@ function renderGalleryPage() {
                 </button>
               </div>
             </div>
-            <div class="avatar">JD</div>
+            <div class="avatar" id="user-avatar"></div>
           </div>
         </div>
       </nav>
