@@ -67,6 +67,28 @@ function handleSignup() {
       // 🔁 Force reload to ensure displayName is updated in Auth state
       await auth.currentUser.reload();
       setUserNameInUI(name);
+      function setUserNameInUI(name) {
+  const displayEl = document.getElementById("display-name");
+  const profileEl = document.getElementById("profile-name");
+  const navAvatarEl = document.getElementById("nav-avatar");
+  const profileAvatarEl = document.getElementById("profile-avatar-large");
+
+  if (displayEl) displayEl.textContent = name || "Guest";
+  if (profileEl) profileEl.textContent = name || "Guest";
+
+  const initials = (name || "JD")
+    .split(" ")
+    .map((s) => s[0] || "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  if (navAvatarEl) navAvatarEl.textContent = initials || "JD";
+  if (profileAvatarEl) profileAvatarEl.textContent = initials || "JD";
+  
+  // Add this line:
+  updateDropdownName(name);
+}
     })
     .catch((error) => {
       console.error("Signup error:", error);
@@ -168,12 +190,6 @@ function updateDropdownName(name) {
   if (nameEl) nameEl.textContent = name || "Guest";
 }
 
-// Extend setUserNameInUI to also update dropdown
-const originalSetUserNameInUI = setUserNameInUI;
-setUserNameInUI = function (name) {
-  originalSetUserNameInUI(name);
-  updateDropdownName(name);
-};
 
 // Logout from dropdown
 if (logoutBtn) {
@@ -183,6 +199,4 @@ if (logoutBtn) {
   });
 }
 
-function renderNav() {
-  console.log("Navigation updated (placeholder)");
-}
+
