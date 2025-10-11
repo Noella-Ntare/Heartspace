@@ -1,28 +1,43 @@
 // You don't need to import anything because compat scripts are loaded in HTML
 
-// Example: sign up a user
-const signupForm = document.getElementById("auth-form");
-signupForm.addEventListener("submit", (e) => {
-  e.preventDefault();
+// Auth Modal Functions (must be at top for inline onclick handlers)
+function showLogin() {
+  isLoginMode = true;
+  updateAuthModal();
+  document.getElementById('auth-modal').classList.add('active');
+}
 
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+function showSignup() {
+  isLoginMode = false;
+  updateAuthModal();
+  document.getElementById('auth-modal').classList.add('active');
+}
 
-  auth.createUserWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      const user = userCredential.user;
-      console.log("User signed up:", user.uid);
+function hideAuth() {
+  document.getElementById('auth-modal').classList.remove('active');
+}
 
-      // Optional: create user document in Firestore
-      return db.collection("users").doc(user.uid).set({
-        email: user.email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    })
-    .catch((error) => {
-      console.error("Error signing up:", error.message);
-    });
-});
+function updateAuthModal() {
+  const title = document.getElementById('auth-title');
+  const subtitle = document.getElementById('auth-subtitle');
+  const submitBtn = document.getElementById('auth-submit-btn');
+  const toggleBtn = document.getElementById('auth-toggle');
+  const nameField = document.getElementById('name-field');
+  
+  if (isLoginMode) {
+    title.textContent = 'Welcome Back';
+    subtitle.textContent = 'Continue your healing journey';
+    submitBtn.textContent = 'Sign In';
+    toggleBtn.textContent = "Don't have an account? Sign up";
+    nameField.style.display = 'none';
+  } else {
+    title.textContent = 'Join the Community';
+    subtitle.textContent = 'Start your transformation today';
+    submitBtn.textContent = 'Sign Up';
+    toggleBtn.textContent = 'Already have an account? Sign in';
+    nameField.style.display = 'block';
+  }
+}
 
 //State Management
 let currentPage = 'landing';
@@ -270,6 +285,8 @@ const categories = ['All', 'Painting', 'Photography', 'Digital Art', 'Sculpture'
 
 // Navigation
 function navigate(page) {
+  console.log("Navigating to:", page); // Debug log
+  
   // Hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   
@@ -285,52 +302,20 @@ function navigate(page) {
     });
     
     // Render page content if needed
-    if (page === 'programs') {
+    if (page === 'programs' || page === 'dashboard') {
       renderProgramsPage();
     } else if (page === 'community') {
       renderCommunityPage();
     } else if (page === 'gallery') {
       renderGalleryPage();
     }
-  }
-}
-
-// Auth Functions
-function showLogin() {
-  isLoginMode = true;
-  updateAuthModal();
-  document.getElementById('auth-modal').classList.add('active');
-}
-
-function showSignup() {
-  isLoginMode = false;
-  updateAuthModal();
-  document.getElementById('auth-modal').classList.add('active');
-}
-
-function hideAuth() {
-  document.getElementById('auth-modal').classList.remove('active');
-}
-
-function updateAuthModal() {
-  const title = document.getElementById('auth-title');
-  const subtitle = document.getElementById('auth-subtitle');
-  const submitBtn = document.getElementById('auth-submit-btn');
-  const toggleBtn = document.getElementById('auth-toggle');
-  const nameField = document.getElementById('name-field');
-  
-  if (isLoginMode) {
-    title.textContent = 'Welcome Back';
-    subtitle.textContent = 'Continue your healing journey';
-    submitBtn.textContent = 'Sign In';
-    toggleBtn.textContent = "Don't have an account? Sign up";
-    nameField.style.display = 'none';
-  } else {
-    title.textContent = 'Join the Community';
-    subtitle.textContent = 'Start your transformation today';
-    submitBtn.textContent = 'Sign Up';
-    toggleBtn.textContent = 'Already have an account? Sign in';
-    nameField.style.display = 'block';
+    
+    // Update user display after rendering (small delay to ensure DOM is ready)
+    setTimeout(() => {
+      if (typeof updateCurrentUserDisplay === 'function') {
+        updateCurrentUserDisplay();
+      }
+    }, 100);
   }
 }
 
@@ -365,8 +350,16 @@ function renderProgramsPage() {
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                   </svg>
                 </div>
-                <span class="font-semibold">Healing Hub</span>
+                <span class="font-semibold">HeArtSpace</span>
               </div>
+                <!-- ADD THIS MOBILE MENU BUTTON -->
+  <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
               <div class="nav-links">
                 <button class="nav-link" onclick="navigate('dashboard')">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -515,6 +508,7 @@ function renderProgramsPage() {
       </div>
     </div>
   `;
+
 }
 
 function filterPrograms(filter) {
@@ -547,8 +541,16 @@ function renderCommunityPage() {
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                   </svg>
                 </div>
-                <span class="font-semibold">Healing Hub</span>
+                <span class="font-semibold">HeArtSpace</span>
               </div>
+                <!-- ADD THIS MOBILE MENU BUTTON -->
+  <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
               <div class="nav-links">
                 <button class="nav-link" onclick="navigate('dashboard')">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -708,6 +710,7 @@ function renderCommunityPage() {
       </div>
     </div>
   `;
+  ;
 }
 
 function handleCreatePost() {
@@ -748,8 +751,16 @@ function renderGalleryPage() {
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                   </svg>
                 </div>
-                <span class="font-semibold">Healing Hub</span>
+                <span class="font-semibold">HeArtSpace</span>
               </div>
+                <!-- ADD THIS MOBILE MENU BUTTON -->
+  <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
               <div class="nav-links">
                 <button class="nav-link" onclick="navigate('dashboard')">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -909,6 +920,8 @@ function renderGalleryPage() {
       </div>
     </div>
   `;
+
+
 }
 
 function selectCategory(category) {
@@ -928,84 +941,73 @@ function handleShareArt() {
 }
 
 // Event Listeners
+// DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
   // Auth form
-  // Fixed version:
-const authForm = document.getElementById('auth-form');
-authForm.addEventListener('submit', (e) => {
-  e.preventDefault();
+  const authForm = document.getElementById('auth-form');
+  if (authForm) {
+    authForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      if (isLoginMode) {
+        handleLogin();
+      } else {
+        handleSignup();
+      }
+    });
+  }
   
-  if (isLoginMode) {
-    handleLogin();
-  } else {
-    handleSignup();
+  // Auth toggle
+  const authToggle = document.getElementById('auth-toggle');
+  if (authToggle) {
+    authToggle.addEventListener('click', () => {
+      isLoginMode = !isLoginMode;
+      updateAuthModal();
+    });
+  }
+
+  // Close modal on background click
+  const authModal = document.getElementById('auth-modal');
+  if (authModal) {
+    authModal.addEventListener('click', (e) => {
+      if (e.target.id === 'auth-modal') {
+        hideAuth();
+      }
+    });
   }
 });
 
-  // Auth toggle
-  document.getElementById('auth-toggle').addEventListener('click', () => {
-    isLoginMode = !isLoginMode;
-    updateAuthModal();
-  });
-
-  // Close modal on background click
-  document.getElementById('auth-modal').addEventListener('click', (e) => {
-    if (e.target.id === 'auth-modal') {
-      hideAuth();
+// Mobile Menu Toggle
+document.addEventListener('click', (e) => {
+  const toggle = e.target.closest('.mobile-menu-toggle');
+  if (toggle) {
+    const navLinks = document.getElementById('nav-links');
+    if (navLinks) {
+      navLinks.classList.toggle('mobile-active');
     }
-  });
+  }
+  
+  // Close menu when clicking outside
+  if (!e.target.closest('.nav-left')) {
+    const navLinks = document.getElementById('nav-links');
+    if (navLinks) {
+      navLinks.classList.remove('mobile-active');
+    }
+  }
 });
 
+// Close mobile menu when nav link is clicked
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.nav-link')) {
+    const navLinks = document.getElementById('nav-links');
+    if (navLinks) {
+      navLinks.classList.remove('mobile-active');
+    }
+  }
+});
+  
 
 
-function signUp(email, password, username) {
-  auth.createUserWithEmailAndPassword(email, password)
-    .then(userCredential => {
-      // Save user info in Firestore
-      return db.collection('users').doc(userCredential.user.uid).set({
-        username: username,
-        email: email,
-        avatarUrl: ''
-      });
-    })
-    .then(() => console.log('User registered!'))
-    .catch(err => console.error(err));
-}
 
-// ---- LOGIN ----
-function logIn(email, password) {
-  auth.signInWithEmailAndPassword(email, password)
-    .then(userCredential => console.log('Logged in:', userCredential.user))
-    .catch(err => console.error(err));
-}
-
-// ---- POST ARTWORK ----
-async function postArtwork(file, title, description) {
-  const storageRef = storage.ref('artworks/' + file.name);
-  await storageRef.put(file);
-  const imageUrl = await storageRef.getDownloadURL();
-
-  await db.collection('artworks').add({
-    authorId: auth.currentUser.uid,
-    title: title,
-    description: description,
-    imageUrl: imageUrl,
-    likes: [],
-    comments: [],
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  console.log('Artwork posted!');
-}
-
-// ---- DISPLAY GALLERY ----
-db.collection('artworks').orderBy('createdAt', 'desc')
-  .onSnapshot(snapshot => {
-    snapshot.docs.forEach(doc => {
-      const art = doc.data();
-      console.log(art.title, art.imageUrl);
-      // Insert into your HTML gallery
-    });
-  });
 
   
