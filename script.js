@@ -319,6 +319,59 @@ function navigate(page) {
   }
 }
 
+
+// Hamburger Menu Functionality
+// Add this code to your existing script.js file
+
+// Initialize hamburger menu on page load and after navigation
+function initializeHamburgerMenu() {
+  const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+  const navLinks = document.querySelector('.nav-links');
+  
+  if (mobileMenuToggle && navLinks) {
+    // Toggle menu on button click
+    mobileMenuToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      navLinks.classList.toggle('active');
+      mobileMenuToggle.classList.toggle('active');
+    });
+    
+    // Close menu when clicking on a nav link
+    const navLinkButtons = navLinks.querySelectorAll('.nav-link');
+    navLinkButtons.forEach(link => {
+      link.addEventListener('click', function() {
+        navLinks.classList.remove('active');
+        mobileMenuToggle.classList.remove('active');
+      });
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.nav-left') && !e.target.closest('.mobile-menu-toggle')) {
+        navLinks.classList.remove('active');
+        if (mobileMenuToggle) {
+          mobileMenuToggle.classList.remove('active');
+        }
+      }
+    });
+  }
+}
+
+// Call this function when DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+  initializeHamburgerMenu();
+});
+
+// Also re-initialize after each page navigation
+// Modify your existing navigate function to call this after rendering
+const originalNavigate = window.navigate;
+if (originalNavigate) {
+  window.navigate = function(page) {
+    originalNavigate(page);
+    setTimeout(initializeHamburgerMenu, 100);
+  };
+}
+
 // Toast Notification
 function showToast(message) {
   const toast = document.getElementById('toast');
