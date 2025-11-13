@@ -109,15 +109,23 @@ function navigate(page) {
     
     // Render page content based on which page
     if (page === 'programs') {
-      console.log("Rendering programs page..."); // Debug log
+      console.log("Rendering programs page...");
       renderProgramsPage();
       updateCurrentUserDisplay();
+      setupPageListeners();
     } else if (page === 'community') {
       renderCommunityPage();
+      updateCurrentUserDisplay();
+      setupPageListeners();
     } else if (page === 'gallery') {
       renderGalleryPage();
+      updateCurrentUserDisplay();
+      setupPageListeners();
+    } else if (page === 'profile') {
+      renderProfilePage();
     } else if (page === 'dashboard') {
       updateCurrentUserDisplay();
+      setupPageListeners();
     }
   } else {
     console.error("Page element not found:", `${page}-page`);
@@ -160,24 +168,224 @@ function initializeHamburgerMenu() {
   }
 }
 
+function hideUploadModal() {
+  document.getElementById('upload-modal').classList.remove('active');
+}
+
+// ========== EVENT LISTENERS ==========
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing...');
+  
+  // Check if user is logged in
+  if (isLoggedIn()) {
+    navigate('dashboard');
+  } else {
+    navigate('landing');
+  }
+  
+  // Setup auth form handler ONCE
+  setupAuthForm();
+});
+
+// Separate function to setup auth form
+function setupAuthForm() {
+  const authForm = document.getElementById('auth-form');
+  if (authForm && !authForm.dataset.listenerAttached) {
+    authForm.dataset.listenerAttached = 'true';
+    
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const name = document.getElementById('name').value;
+      
+      let result;
+      
+      if (isLoginMode) {
+        // Login
+        result = await signin(email, password);
+        
+        if (result.success) {
+          hideAuth();
+          navigate('dashboard');
+          showToast('Welcome back!');
+        } else {
+          showToast(result.error);
+        }
+      } else {
+        // Signup
+        if (!name) {
+          showToast('Please enter your name');
+          return;
+        }
+        
+        result = await signup(email, password, name);
+        
+        if (result.success) {
+          hideAuth();
+          navigate('dashboard');
+          showToast('Account created successfully!');
+        } else {
+          showToast(result.error);
+        }
+      }
+    });
+  }
+}
+
+// ========== DASHBOARD LISTENERS ==========
+function setupPageListeners() {
+  // Setup avatar dropdown
+  const navAvatar = document.getElementById('nav-avatar');
+  const dropdown = document.getElementById('profile-dropdown');
+  
+  if (navAvatar && dropdown) {
+    // Remove existing listener by cloning
+    const newAvatar = navAvatar.cloneNode(true);
+    navAvatar.parentNode.replaceChild(newAvatar, navAvatar);
+    
+    newAvatar.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+  }
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (dropdown && !e.target.closest('.nav-user')) {
+      dropdown.classList.add('hidden');
+    }
+  });
+  
+  // Setup logout button
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    const newLogoutBtn = logoutBtn.cloneNode(true);
+    logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+    
+    newLogoutBtn.addEventListener('click', () => {
+      logout();
+      navigate('landing');
+      showToast('Signed out successfully');
+    });
+  }
+}
+
+// Profile Edit Functions
+window.enterProfileEditMode = function() {
+  document.getElementById('name-display').style.display = 'none';
+  document.getElementById('name-input').style.display = 'block';
+  document.getElementById('bio-display').style.display = 'none';
+  document.getElementById('bio-input').style.display = 'block';
+  document.getElementById('edit-profile-btn').style.display = 'none';
+  document.getElementById('profile-button-group').style.display = 'flex';
+};
+
+window.cancelProfileEdit = function() {
+  const user = getCurrentUser();
+  document.getElementById('name-input').value = user.name;
+  document.getElementById('bio-input').value = 'On a journey of healing and self-discovery. 🌱';
+  
+  document.getElementById('name-display').style.display = 'block';
+  document.getElementById('name-input').style.display = 'none';
+  document.getElementById('bio-display').style.display = 'block';
+  document.getElementById('bio-input').style.display = 'none';
+  document.getElementById('edit-profile-btn').style.display = 'block';
+  document.getElementById('profile-button-group').style.display = 'none';
+};
+
+window.saveProfileChanges = function() {
+  const newName = document.getElementById('name-input').value;
+  const newBio = document.getElementById('bio-input').value;
+  
+  // Update localStorage
+  const user = getCurrentUser();
+  user.name = newName;
+  localStorage.setItem('user', JSON.stringify(user));
+  
+  // Update display
+  document.getElementById('name-display').textContent = newName;
+  document.getElementById('bio-display').textContent = newBio;
+  document.getElementById('profile-name-display').textContent = newName;
+  
+  // Update avatar
+  const initials = newName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('profile-avatar').textContent = initials;
+  
+  cancelProfileEdit();
+  showToast('Profile updated successfully!');
+  updateCurrentUserDisplay();
+};
+
+async function loadProfileStats() {
+  console.log("Loading profile stats...");
+  
+  // Count active programs (programs with progress > 0)
+  loadProgramProgress();
+  const activePrograms = programs.filter(p => calculateProgramProgress(p.id) > 0).length;
+  
+  // Count completed chapters
+  let completedChapters = 0;
+  programs.forEach(program => {
+    if (program.chapters) {
+      completedChapters += program.chapters.filter(ch => 
+        isChapterCompleted(program.id, ch.id)
+      ).length;
+    }
+  });
+  
+  // Get artworks count
+  const artworksResult = await getArtworks();
+  const user = getCurrentUser();
+  const myArtworks = artworksResult.success ? 
+    artworksResult.data.filter(a => a.user.id === user.id).length : 0;
+  
+  // Get posts count  
+  const postsResult = await getPosts();
+  const myPosts = postsResult.success ? 
+    postsResult.data.filter(p => p.user.id === user.id).length : 0;
+  
+  console.log("Stats:", { activePrograms, completedChapters, myArtworks, myPosts });
+  
+  // Update individual stat elements
+  const statActivePrograms = document.getElementById('stat-active-programs');
+  const statCompletedChapters = document.getElementById('stat-completed-chapters');
+  const statArtworksShared = document.getElementById('stat-artworks-shared');
+  const statCommunityPosts = document.getElementById('stat-community-posts');
+  
+  if (statActivePrograms) statActivePrograms.textContent = activePrograms;
+  if (statCompletedChapters) statCompletedChapters.textContent = completedChapters;
+  if (statArtworksShared) statArtworksShared.textContent = myArtworks;
+  if (statCommunityPosts) statCommunityPosts.textContent = myPosts;
+}
 
 // ========== PROFILE PAGE ==========
 function renderProfilePage() {
+  console.log("renderProfilePage called");
   const user = getCurrentUser();
   if (!user) {
+    console.log("No user found, navigating to landing");
     navigate('landing');
     return;
   }
 
-  const profilePage = document.getElementById('profile-page');
+  // Check if profile page exists, if not create it
+  let profilePage = document.getElementById('profile-page');
+  console.log("Profile page element:", profilePage);
   
-  // Get initials
-  const initials = user.name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  if (!profilePage) {
+    console.log("Profile page not found, creating it...");
+    profilePage = document.createElement('div');
+    profilePage.id = 'profile-page';
+    profilePage.className = 'page';
+    document.body.appendChild(profilePage);
+  }
+  
+  console.log("Rendering profile page content...");
+  
+  // Get user initials
+  const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   
   profilePage.innerHTML = `
     <!-- Navigation -->
@@ -239,305 +447,107 @@ function renderProfilePage() {
 
     <!-- Main Content -->
     <div class="container py-8 px-4">
-      <div>
-        <h1 class="page-title" style="font-size: 2.25rem; font-weight: 700; margin-bottom: 0.5rem;">
-          Your Profile
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" style="display: inline;">
-            <path d="M12 3l1.545 4.755L18 9.27l-4.455 3.24L15.09 21 12 17.755 8.91 21l1.545-8.49L6 9.27l4.455-1.515L12 3z"/>
-          </svg>
-        </h1>
-        <p class="text-muted-foreground mb-8">Manage your personal information and journey preferences</p>
-      </div>
-
-      <div style="display: grid; gap: 2rem; grid-template-columns: 1fr;">
-        <!-- Profile Card -->
         <div>
-          <div class="card" style="text-align: center;">
-            <div style="position: relative; display: inline-block; margin-bottom: 1.5rem;">
-              <div class="profile-avatar-large" id="profile-avatar" style="width: 128px; height: 128px; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); background: linear-gradient(135deg, #f9a8d4 0%, #c084fc 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; font-weight: 600; margin: 0 auto;">
-                ${initials}
-              </div>
-            </div>
-
-            <div style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem;" id="profile-name-display">${user.name}</div>
-
-            <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
-              <div class="info-item" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; font-size: 0.875rem;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
+            <h1 class="page-title" style="font-size: 2.25rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                Your Profile
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2">
+                    <path d="M12 3l1.545 4.755L18 9.27l-4.455 3.24L15.09 21 12 17.755 8.91 21l1.545-8.49L6 9.27l4.455-1.515L12 3z"/>
                 </svg>
-                <span>${user.email}</span>
-              </div>
-              <div class="info-item" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; font-size: 0.875rem;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <span>Joined ${new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-              </div>
-            </div>
-          </div>
+            </h1>
+            <p class="page-subtitle" style="color: #6b7280; margin-bottom: 2rem;">Manage your personal information and journey preferences</p>
         </div>
 
-        <!-- Edit Form -->
-        <div>
-          <div class="card">
-            <div style="margin-bottom: 2rem;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h2 style="font-size: 1.5rem; font-weight: 600;">Personal Information</h2>
-                <button class="btn btn-outline" id="edit-profile-btn" onclick="enterProfileEditMode()">Edit Profile</button>
-              </div>
+        <div style="display: grid; gap: 2rem; grid-template-columns: 1fr;">
+            <!-- Profile Card -->
+            <div>
+                <div class="card" style="text-align: center;">
+                    <div style="position: relative; display: inline-block; margin-bottom: 1.5rem;">
+                        <div style="width: 128px; height: 128px; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); background: linear-gradient(135deg, #f9a8d4 0%, #c084fc 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; font-weight: 600; margin: 0 auto;">
+                            ${initials}
+                        </div>
+                    </div>
 
-              <div style="display: grid; gap: 1.5rem;">
-                <div>
-                  <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Full Name</label>
-                  <div class="form-display" id="name-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem;">${user.name}</div>
-                  <input type="text" id="name-input" class="form-input" value="${user.name}" style="display: none; width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem;">
+                    <div style="font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;" id="profile-display-name">
+                        ${user.name}
+                    </div>
+
+                    <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; font-size: 0.875rem; color: #4b5563;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                            <span>${user.email}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; font-size: 0.875rem; color: #4b5563;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span>Joined ${new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div>
-                  <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Email Address</label>
-                  <div class="form-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem;">${user.email}</div>
-                </div>
+                <!-- Journey Stats -->
+                <div style="display: grid; gap: 1rem; margin-top: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(187, 247, 208, 0.6) 0%, rgba(134, 239, 172, 0.6) 100%); border: 1px solid #86efac;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; background: rgba(74, 222, 128, 0.3);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                            </svg>
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1f2937;" id="stat-active-programs">0</div>
+                        <p style="font-size: 0.875rem; color: #374151;">Active Programs</p>
+                    </div>
 
-                <div>
-                  <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Bio</label>
-                  <div class="form-display" id="bio-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem;">On a journey of healing and self-discovery. 🌱</div>
-                  <textarea id="bio-input" class="form-input" style="display: none; width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; min-height: 100px;">On a journey of healing and self-discovery. 🌱</textarea>
-                </div>
-              </div>
+                    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(251, 207, 232, 0.6) 0%, rgba(249, 168, 212, 0.6) 100%); border: 1px solid #f9a8d4;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; background: rgba(244, 114, 182, 0.3);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#be185d" stroke-width="2">
+                                <path d="M12 3l1.545 4.755L18 9.27l-4.455 3.24L15.09 21 12 17.755 8.91 21l1.545-8.49L6 9.27l4.455-1.515L12 3z"/>
+                            </svg>
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1f2937;" id="stat-completed-chapters">0</div>
+                        <p style="font-size: 0.875rem; color: #374151;">Chapters Completed</p>
+                    </div>
 
-              <div id="profile-button-group" style="display: none; gap: 0.75rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" onclick="saveProfileChanges()">Save Changes</button>
-                <button class="btn btn-outline" onclick="cancelProfileEdit()">Cancel</button>
-              </div>
+                    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(191, 219, 254, 0.6) 0%, rgba(147, 197, 253, 0.6) 100%); border: 1px solid #93c5fd;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; background: rgba(96, 165, 250, 0.3);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1f2937;" id="stat-artworks-shared">0</div>
+                        <p style="font-size: 0.875rem; color: #374151;">Artworks Shared</p>
+                    </div>
+
+                    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(254, 215, 170, 0.6) 0%, rgba(253, 186, 116, 0.6) 100%); border: 1px solid #fdba74;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; background: rgba(251, 146, 60, 0.3);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1f2937;" id="stat-community-posts">0</div>
+                        <p style="font-size: 0.875rem; color: #374151;">Community Posts</p>
+                    </div>
+                </div>
             </div>
-          </div>
-
-          <!-- Journey Stats -->
-          <div id="profile-stats" style="display: grid; gap: 1rem; margin-top: 1.5rem; grid-template-columns: repeat(2, 1fr);"></div>
         </div>
-      </div>
     </div>
   `;
 
+  // Setup event listeners for profile page
   updateCurrentUserDisplay();
   loadProfileStats();
+  setupPageListeners();
 }
-
-// Profile Edit Functions
-window.enterProfileEditMode = function() {
-  document.getElementById('name-display').style.display = 'none';
-  document.getElementById('name-input').style.display = 'block';
-  document.getElementById('bio-display').style.display = 'none';
-  document.getElementById('bio-input').style.display = 'block';
-  document.getElementById('edit-profile-btn').style.display = 'none';
-  document.getElementById('profile-button-group').style.display = 'flex';
-};
-
-window.cancelProfileEdit = function() {
-  const user = getCurrentUser();
-  document.getElementById('name-input').value = user.name;
-  document.getElementById('bio-input').value = 'On a journey of healing and self-discovery. 🌱';
-  
-  document.getElementById('name-display').style.display = 'block';
-  document.getElementById('name-input').style.display = 'none';
-  document.getElementById('bio-display').style.display = 'block';
-  document.getElementById('bio-input').style.display = 'none';
-  document.getElementById('edit-profile-btn').style.display = 'block';
-  document.getElementById('profile-button-group').style.display = 'none';
-};
-
-window.saveProfileChanges = function() {
-  const newName = document.getElementById('name-input').value;
-  const newBio = document.getElementById('bio-input').value;
-  
-  // Update localStorage
-  const user = getCurrentUser();
-  user.name = newName;
-  localStorage.setItem('user', JSON.stringify(user));
-  
-  // Update display
-  document.getElementById('name-display').textContent = newName;
-  document.getElementById('bio-display').textContent = newBio;
-  document.getElementById('profile-name-display').textContent = newName;
-  
-  // Update avatar
-  const initials = newName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  document.getElementById('profile-avatar').textContent = initials;
-  
-  cancelProfileEdit();
-  showToast('Profile updated successfully!');
-  updateCurrentUserDisplay();
-};
-
-async function loadProfileStats() {
-  const statsContainer = document.getElementById('profile-stats');
-  if (!statsContainer) return;
-  
-  // Count active programs (programs with progress > 0)
-  loadProgramProgress();
-  const activePrograms = programs.filter(p => calculateProgramProgress(p.id) > 0).length;
-  
-  // Count completed chapters
-  let completedChapters = 0;
-  programs.forEach(program => {
-    if (program.chapters) {
-      completedChapters += program.chapters.filter(ch => 
-        isChapterCompleted(program.id, ch.id)
-      ).length;
-    }
-  });
-  
-  // Get artworks count
-  const artworksResult = await getArtworks();
-  const user = getCurrentUser();
-  const myArtworks = artworksResult.success ? 
-    artworksResult.data.filter(a => a.user.id === user.id).length : 0;
-  
-  // Get posts count  
-  const postsResult = await getPosts();
-  const myPosts = postsResult.success ? 
-    postsResult.data.filter(p => p.user.id === user.id).length : 0;
-  
-  statsContainer.innerHTML = `
-    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(187, 247, 208, 0.6) 0%, rgba(134, 239, 172, 0.6) 100%); border: 1px solid #86efac;">
-      <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">${activePrograms}</div>
-      <p style="font-size: 0.875rem; color: #374151;">Active Programs</p>
-    </div>
-
-    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(251, 207, 232, 0.6) 0%, rgba(249, 168, 212, 0.6) 100%); border: 1px solid #f9a8d4;">
-      <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">${completedChapters}</div>
-      <p style="font-size: 0.875rem; color: #374151;">Chapters Completed</p>
-    </div>
-
-    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(191, 219, 254, 0.6) 0%, rgba(147, 197, 253, 0.6) 100%); border: 1px solid #93c5fd;">
-      <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">${myArtworks}</div>
-      <p style="font-size: 0.875rem; color: #374151;">Artworks Shared</p>
-    </div>
-
-    <div class="stat-card" style="padding: 1.5rem; border-radius: 1rem; background: linear-gradient(135deg, rgba(254, 215, 170, 0.6) 0%, rgba(253, 186, 116, 0.6) 100%); border: 1px solid #fdba74;">
-      <div style="font-size: 2rem; font-weight: 700; color: #1f2937;">${myPosts}</div>
-      <p style="font-size: 0.875rem; color: #374151;">Community Posts</p>
-    </div>
-  `;
-}
-
-// ========== PROFILE PAGE ==========
-function renderProfilePage() {
-  const user = getCurrentUser();
-  if (!user) {
-    navigate('landing');
-    return;
-  }
-
-  const profilePage = document.getElementById('profile-page');
-  
-  profilePage.innerHTML = `
-    <!-- Navigation -->
-    <nav class="navbar">
-      <div class="container">
-        <div class="nav-content">
-          <div class="nav-left">
-            <div class="nav-logo">
-              <div class="logo-small">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                </svg>
-              </div>
-              <span class="font-semibold">HeArtSpace</span>
-            </div>
-            <div class="nav-links">
-              <button class="nav-link" onclick="navigate('dashboard')">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                Home
-              </button>
-              <button class="nav-link" onclick="navigate('programs')">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
-                </svg>
-                Programs
-              </button>
-              <button class="nav-link" onclick="navigate('community')">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                Community
-              </button>
-              <button class="nav-link" onclick="navigate('gallery')">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2a10 10 0 0 0-9.95 9h11.64L9.74 7.05a1 1 0 0 1 1.41-1.41l5.66 5.65a1 1 0 0 1 0 1.42l-5.66 5.65a1 1 0 0 1-1.41 0 1 1 0 0 1 0-1.41L13.69 13H2.05A10 10 0 1 0 12 2Z"></path>
-                </svg>
-                Gallery
-              </button>
-            </div>
-          </div>
-          <div class="nav-user">
-            <div id="nav-avatar" class="avatar clickable">JD</div>
-            <div id="profile-dropdown" class="dropdown hidden">
-              <p id="dropdown-name" class="dropdown-name">User Name</p>
-              <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-              <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </nav>
-
-    <div class="container py-8 px-4">
-      <div class="profile-container">
-        <!-- Profile Header -->
-        <div class="profile-header card">
-          <div class="profile-header-content">
-            <div class="profile-avatar-large" id="profile-avatar-large">
-              ${user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-            </div>
-            <div class="profile-info">
-              <h1>${user.name}</h1>
-              <p class="text-muted-foreground">${user.email}</p>
-              <p class="profile-joined">Member since ${new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-            </div>
-          </div>
-          <button class="btn btn-outline" onclick="showEditProfileModal()">Edit Profile</button>
-        </div>
-        
-        <!-- Profile Stats -->
-        <div class="profile-stats card">
-          <div class="stat-item">
-            <div class="stat-number" id="stat-active-programs">0</div>
-            <div class="stat-label">Active Programs</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number" id="stat-completed-chapters">0</div>
-            <div class="stat-label">Chapters Completed</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number" id="stat-artworks-shared">0</div>
-            <div class="stat-label">Artworks Shared</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number" id="stat-community-posts">0</div>
-            <div class="stat-label">Community Posts</div>    
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
 
 // ========== PROGRAMS PAGE ==========
 
-// Programs data
+// Programs data - MOVED OUTSIDE THE FUNCTION!
 const programs = [
   {
     id: 1,
@@ -724,7 +734,7 @@ function calculateProgramProgress(programId) {
 
 // Render Programs Page
 function renderProgramsPage() {
-  console.log("renderProgramsPage called"); // Debug
+  console.log("renderProgramsPage called");
   const programsPage = document.getElementById('programs-page');
   
   if (!programsPage) {
@@ -732,7 +742,7 @@ function renderProgramsPage() {
     return;
   }
   
-  console.log("Programs page element found, rendering content..."); // Debug
+  console.log("Programs page element found, rendering content...");
   
   programsPage.innerHTML = `
     <!-- Navigation -->
@@ -782,11 +792,10 @@ function renderProgramsPage() {
           </div>
           <div class="nav-user">
             <div id="nav-avatar" class="avatar clickable">JD</div>
-           <!-- Hidden dropdown -->
-  <div id="profile-dropdown" class="dropdown hidden">
+           <div id="profile-dropdown" class="dropdown hidden">
     <p id="dropdown-name" class="dropdown-name">User Name</p>
     <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-    <button id="logout-btn" class="dropdown-link logout" a href="index.html">Sign Out</button>
+    <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
   </div>
           </div>
         </div>
@@ -1109,11 +1118,10 @@ function renderCommunityPage() {
           </div>
           <div class="nav-user">
             <div id="nav-avatar" class="avatar clickable">JD</div>
-            <!-- Hidden dropdown -->
-  <div id="profile-dropdown" class="dropdown hidden">
+            <div id="profile-dropdown" class="dropdown hidden">
     <p id="dropdown-name" class="dropdown-name">User Name</p>
     <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-    <button id="logout-btn" class="dropdown-link logout" a href="index.html">Sign Out</button>
+    <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
   </div>
           </div>
         </div>
@@ -1152,10 +1160,7 @@ function renderCommunityPage() {
     </div>
   `;
   
-  // Update user avatar in create post section
   updateCurrentUserDisplay();
-  
-  // Load posts from backend
   loadPosts();
 }
 
@@ -1179,7 +1184,6 @@ async function loadPosts() {
       const postDiv = document.createElement('div');
       postDiv.className = 'post-card';
       
-      // Get initials for post author
       const initials = post.user.name
         .split(' ')
         .map(n => n[0])
@@ -1219,7 +1223,7 @@ async function handleCreatePost() {
   if (result.success) {
     showToast('Post shared successfully!');
     textarea.value = '';
-    loadPosts(); // Reload posts
+    loadPosts();
   } else {
     showToast('Failed to create post: ' + result.error);
   }
@@ -1276,11 +1280,10 @@ function renderGalleryPage() {
           </div>
           <div class="nav-user">
             <div id="nav-avatar" class="avatar clickable">JD</div>
-            <!-- Hidden dropdown -->
-  <div id="profile-dropdown" class="dropdown hidden">
+            <div id="profile-dropdown" class="dropdown hidden">
     <p id="dropdown-name" class="dropdown-name">User Name</p>
     <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-    <button id="logout-btn" class="dropdown-link logout" a href="index.html">Sign Out</button>
+    <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
   </div>
           </div>
         </div>
@@ -1369,7 +1372,6 @@ async function loadGallery() {
       
       const isLiked = artwork.likes.some(like => like.userId === currentUser.id);
       
-      // Get initials
       const initials = artwork.user.name
         .split(' ')
         .map(n => n[0])
@@ -1467,7 +1469,6 @@ function selectCategory(category) {
 function showUploadModal() {
   document.getElementById('upload-modal').classList.add('active');
   
-  // Attach upload form handler (only once)
   const uploadForm = document.getElementById('upload-form');
   if (uploadForm && !uploadForm.dataset.listenerAttached) {
     uploadForm.dataset.listenerAttached = 'true';
@@ -1484,13 +1485,11 @@ function showUploadModal() {
         return;
       }
       
-      // Create FormData
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
       formData.append('image', imageFile);
       
-      // Show loading
       const submitBtn = e.target.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
       submitBtn.textContent = 'Uploading...';
@@ -1498,7 +1497,6 @@ function showUploadModal() {
       
       const result = await uploadArtwork(formData);
       
-      // Reset button
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
       
@@ -1506,124 +1504,9 @@ function showUploadModal() {
         showToast('Artwork uploaded successfully!');
         hideUploadModal();
         uploadForm.reset();
-        loadGallery(); // Reload gallery to show new artwork
+        loadGallery();
       } else {
         showToast('Failed to upload: ' + result.error);
       }
     });
-  }
-}
-
-function hideUploadModal() {
-  document.getElementById('upload-modal').classList.remove('active');
-}
-
-// ========== EVENT LISTENERS ==========
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM loaded, initializing...');
-  
-  // Check if user is logged in
-  if (isLoggedIn()) {
-    navigate('dashboard');
-  } else {
-    navigate('landing');
-  }
-  
-  // Auth form handler
-  const authForm = document.getElementById('auth-form');
-  if (authForm) {
-    authForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const name = document.getElementById('name').value;
-      
-      let result;
-      
-      if (isLoginMode) {
-        // Login
-        result = await signin(email, password);
-        
-        if (result.success) {
-          hideAuth();
-          navigate('dashboard');
-          showToast('Welcome back!');
-        } else {
-          showToast(result.error);
-        }
-      } else {
-        // Signup
-        if (!name) {
-          showToast('Please enter your name');
-          return;
-        }
-        
-        result = await signup(email, password, name);
-        
-        if (result.success) {
-          hideAuth();
-          navigate('dashboard');
-          showToast('Account created successfully!');
-        } else {
-          showToast(result.error);
-        }
-      }
-    });
-  }
-  
-  // Auth toggle button
-  const authToggle = document.getElementById('auth-toggle');
-  if (authToggle) {
-    authToggle.addEventListener('click', () => {
-      isLoginMode = !isLoginMode;
-      updateAuthModal();
-    });
-  }
-  
-  // Close modal on background click
-  const authModal = document.getElementById('auth-modal');
-  if (authModal) {
-    authModal.addEventListener('click', (e) => {
-      if (e.target.id === 'auth-modal') {
-        hideAuth();
-      }
-    });
-  }
-  
-  // Logout button
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      signout(); // Clear token and user data
-      navigate('landing'); // Go to landing page
-      showToast('Logged out successfully');
-      
-      // Hide all pages and show landing
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.getElementById('landing-page').classList.add('active');
-    });
-  }
-  
-  // Profile dropdown toggle
-  const navAvatar = document.getElementById('nav-avatar');
-  const profileDropdown = document.getElementById('profile-dropdown');
-  
-  if (navAvatar && profileDropdown) {
-    navAvatar.addEventListener('click', (e) => {
-      e.stopPropagation();
-      profileDropdown.classList.toggle('hidden');
-    });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.nav-user')) {
-        profileDropdown.classList.add('hidden');
-      }
-    });
-  }
-  
-  // Initialize hamburger menu
-  initializeHamburgerMenu();
-});
-}
+  }}

@@ -19,3 +19,171 @@
            <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
 </body>
 </html>
+
+
+
+// ========== PROFILE PAGE ==========
+
+function renderProfilePage() {
+  const user = getCurrentUser();
+  if (!user) {
+    navigate('landing');
+    return;
+  }
+  const profilePage = document.getElementById('profile-page');
+  // Get initials
+  const initials = user.name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  
+  profilePage.innerHTML = `
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-content">
+          <div class="nav-left">
+            <div class="nav-logo">
+              <div class="logo-small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </div>
+              <span class="font-semibold">HeArtSpace</span>
+            </div>
+            <div class="nav-links">
+              <button class="nav-link" onclick="navigate('dashboard')">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                Home
+              </button>
+              <button class="nav-link" onclick="navigate('programs')">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                </svg>
+                Programs
+              </button>
+              <button class="nav-link" onclick="navigate('community')">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                Community
+              </button>
+              <button class="nav-link" onclick="navigate('gallery')">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a10 10 0 0 0-9.95 9h11.64L9.74 7.05a1 1 0 0 1 1.41-1.41l5.66 5.65a1 1 0 0 1 0 1.42l-5.66 5.65a1 1 0 0 1-1.41 0 1 1 0 0 1 0-1.41L13.69 13H2.05A10 10 0 1 0 12 2Z"></path>
+                </svg>
+                Gallery
+              </button>
+            </div>
+          </div>
+          <div class="nav-user">
+            <div id="nav-avatar" class="avatar clickable">${initials}</div>
+            <div id="profile-dropdown" class="dropdown hidden">
+              <p id="dropdown-name" class="dropdown-name">${user.name}</p>
+              <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
+              <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-8 px-4">
+      <div>
+        <h1 class="page-title" style="font-size: 2.25rem; font-weight: 700; margin-bottom: 0.5rem;">
+          Your Profile
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" style="display: inline;">
+            <path d="M12 3l1.545 4.755L18 9.27l-4.455 3.24L15.09 21 12 17.755 8.91 21l1.545-8.49L6 9.27l4.455-1.515L12 3z"/>
+          </svg>
+        </h1>
+        <p class="text-muted-foreground mb-8">Manage your personal information and journey preferences</p>
+      </div>
+
+      <div style="display: grid; gap: 2rem; grid-template-columns: 1fr;">
+        <!-- Profile Card -->
+        <div>
+          <div class="card" style="text-align: center;">
+            <div style="position: relative; display: inline-block; margin-bottom: 1.5rem;">
+              <div class="profile-avatar-large" id="profile-avatar" style="width: 128px; height: 128px; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); background: linear-gradient(135deg, #f9a8d4 0%, #c084fc 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; font-weight: 600; margin: 0 auto;">
+                ${initials}
+              </div>
+            </div>
+
+            <div style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem;" id="profile-name-display">${user.name}</div>
+
+            <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+              <div class="info-item" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; font-size: 0.875rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span>${user.email}</span>
+              </div>
+              <div class="info-item" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; font-size: 0.875rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>Joined ${new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div>
+          <div class="card">
+            <div style="margin-bottom: 2rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2 style="font-size: 1.5rem; font-weight: 600;">Personal Information</h2>
+                <button class="btn btn-outline" id="edit-profile-btn" onclick="enterProfileEditMode()">Edit Profile</button>
+              </div>
+
+              <div style="display: grid; gap: 1.5rem;">
+                <div>
+                  <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Full Name</label>
+                  <div class="form-display" id="name-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem;">${user.name}</div>
+                  <input type="text" id="name-input" class="form-input" value="${user.name}" style="display: none; width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem;">
+                </div>
+
+                <div>
+                  <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Email Address</label>
+                  <div class="form-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem;">${user.email}</div>
+                </div>
+
+                <div>
+                  <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Bio</label>
+                  <div class="form-display" id="bio-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem;">On a journey of healing and self-discovery. 🌱</div>
+                  <textarea id="bio-input" class="form-input" style="display: none; width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; min-height: 100px;">On a journey of healing and self-discovery. 🌱</textarea>
+                </div>
+              </div>
+
+              <div id="profile-button-group" style="display: none; gap: 0.75rem; margin-top: 1.5rem;">
+                <button class="btn btn-primary" onclick="saveProfileChanges()">Save Changes</button>
+                <button class="btn btn-outline" onclick="cancelProfileEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Journey Stats -->
+          <div id="profile-stats" style="display: grid; gap: 1rem; margin-top: 1.5rem; grid-template-columns: repeat(2, 1fr);"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  updateCurrentUserDisplay();
+  loadProfileStats();
+}
