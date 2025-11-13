@@ -25,14 +25,6 @@
             </div>
           </div>
 
-          <!-- MOBILE MENU BUTTON -->
-  <button class="mobile-menu-toggle" id="mobile-menu-toggle">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
-  </button>
 
           <h1 class="mb-6 fade-in-delayed-1">Welcome to Your Healing Journey</h1>
           
@@ -222,7 +214,7 @@
   <!-- Hidden dropdown -->
   <div id="profile-dropdown" class="dropdown hidden">
     <p id="dropdown-name" class="dropdown-name">User Name</p>
-    <a href="profile.html" class="dropdown-link">View Profile</a>
+    <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
     <button id="logout-btn" class="dropdown-link logout" a href="index.html">Sign Out</button>
   </div>
 </div>
@@ -422,42 +414,12 @@
   <!-- Toast Notification -->
   <div id="toast" class="toast"></div>
 
-  
-<!-- Firebase SDKs (compat) -->
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-storage-compat.js"></script>
-
-<!-- Firebase init (must be BEFORE any script that uses auth/db) -->
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBFi-wN9TMWts8v908iobFLapIgTD0zTlg",
-    authDomain: "heartspace-56e8b.firebaseapp.com",
-    projectId: "heartspace-56e8b",
-    storageBucket: "heartspace-56e8b.firebasestorage.app",
-    messagingSenderId: "291031391579",
-    appId: "1:291031391579:web:935712ee4d3ff987b44e7e",
-    measurementId: "G-1GM9VFJNCV"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-
-  // globals used by scripts
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  const storage = firebase.storage();
-
-  console.log("✅ Firebase initialized successfully");
-</script>
 
 <!-- App scripts (in this order) -->
 <script src="scripts/toast.js"></script>
-<script src="scripts/auth.js"></script>
-<script src="scripts/community.js"></script>
-<script src="scripts/gallery.js"></script>
-<script src="scripts/ui.js"></script>
-<script src="script.js"></script>
+ <script src="api.js"></script>
+ <script src="script.js"></script>
+
 
 </body>
 </html>

@@ -663,31 +663,6 @@ p {
   height: 24px;
 }
 
-
-/* Hamburger Menu Styles - Add to your existing styles.css */
-
-/* Mobile Menu Toggle Button */
-.mobile-menu-toggle {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  position: relative;
-  z-index: 1001;
-}
-
-.mobile-menu-toggle svg {
-  width: 28px;
-  height: 28px;
-  stroke: var(--foreground);
-  transition: transform 0.3s ease;
-}
-
-.mobile-menu-toggle.active svg {
-  transform: rotate(90deg);
-}
-
 /* Responsive Navigation - Mobile Only */
 @media (max-width: 768px) {
   /* Show hamburger button on mobile */
@@ -1026,95 +1001,343 @@ p {
   }
 }
 
-/* Programs Page Specific Styles */
-.programs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-top: 2rem;
+.main-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
 }
 
-.program-card {
+.view {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Welcome Section */
+.welcome-section {
+    margin-bottom: 3rem;
+}
+
+.welcome-title {
+    font-size: 1.875rem;
+    font-weight: 500;
+    color: var(--gray-800);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.emoji {
+    font-size: 1.5rem;
+}
+
+.welcome-description {
+    color: var(--gray-600);
+    font-size: 1rem;
+}
+
+/* Add this to your styles.css */
+
+/* New Programs Card Design */
+.program-card-new {
   background: white;
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
-  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 320px;
 }
 
-.program-card:hover {
-  transform: translateY(-5px) scale(1.03);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+.program-card-new:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.program-header-visual {
-  height: 128px;
+.program-card-icon {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 4rem;
 }
 
-.program-content {
-  padding: 1.5rem;
+.program-card-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: rgba(0, 0, 0, 0.6);
 }
 
-.program-title-row {
+.program-card-content {
+  flex: 1;
+}
+
+.program-card-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.program-card-description {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.program-card-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 16px;
   display: flex;
-  align-items: start;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  align-items: center;
 }
 
-.check-icon {
-  width: 20px;
-  height: 20px;
-  color: #22c55e;
+.program-card-progress-label {
+  display: flex;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 500;
+}
+
+.program-card-chapters {
+  font-size: 0.875rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Programs Grid */
+.programs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+/* Keep existing styles for other program elements */
+.program-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.program-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.program-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.program-content h3 {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .program-meta {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 12px;
   font-size: 0.875rem;
-  color: var(--muted-foreground);
-  margin-bottom: 1rem;
+  color: #666;
+  margin-top: 12px;
 }
 
-.meta-item {
+.program-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.875rem;
+}
+
+.progress-section {
+  margin-top: 16px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #A8C3A0;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Chapter Card */
+.chapter-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.chapter-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.chapter-number {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.2rem;
+  flex-shrink: 0;
 }
 
-.meta-icon {
-  width: 16px;
-  height: 16px;
+.chapter-info h3 {
+  font-size: 1.125rem;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
-.filter-buttons {
+.chapter-meta {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 0.875rem;
 }
 
-.message-card {
-  background-color: var(--sage-green);
-  color: white;
-  padding: 2rem;
-  border-radius: var(--radius);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  margin-top: 3rem;
+.chapter-content-body {
+  line-height: 1.8;
+  max-width: 800px;
 }
 
-.message-card h2 {
-  color: white;
+.chapter-content-body h2 {
+  font-size: 1.75rem;
+  margin-top: 32px;
+  margin-bottom: 16px;
+  font-weight: 600;
 }
 
-.message-card p {
-  color: rgba(255, 255, 255, 0.9);
+.chapter-content-body h3 {
+  font-size: 1.25rem;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.chapter-content-body ul {
+  margin: 16px 0;
+  padding-left: 24px;
+}
+
+.chapter-content-body li {
+  margin: 8px 0;
+}
+
+.chapter-content-body p {
+  margin: 16px 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.mt-6 {
+  margin-top: 24px;
+}
+
+.mb-3 {
+  margin-bottom: 12px;
+}
+
+.mb-6 {
+  margin-bottom: 24px;
+}
+
+.reflection-box {
+  margin: 24px 0;
+}
+
+.reflection-box h4 {
+  margin-bottom: 12px;
+  font-size: 1.125rem;
+}
+
+.chapter-actions {
+  padding-top: 24px;
+  border-top: 1px solid #e0e0e0;
+}
+/* Responsive */
+@media (max-width: 768px) {
+    .programs-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .program-header-content {
+        flex-direction: column;
+    }
+    
+    .content-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .message-footer {
@@ -1558,4 +1781,327 @@ p {
 .art-footer svg {
   width: 20px;
   height: 20px;
+}
+
+/* Add this to your styles.css file */
+
+/* Profile Dropdown Styles */
+.nav-user {
+  position: relative;
+}
+
+.avatar.clickable {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.avatar.clickable:hover {
+  transform: scale(1.1);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px 0;
+  min-width: 200px;
+  z-index: 1000;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.dropdown.hidden {
+  display: none;
+}
+
+.dropdown-name {
+  padding: 8px 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+
+.dropdown-link {
+  display: block;
+  padding: 10px 16px;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.2s;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+}
+
+.dropdown-link:hover {
+  background: #f5f5f5;
+}
+
+.dropdown-link.logout {
+  color: #e74c3c;
+  border-top: 1px solid #eee;
+  margin-top: 8px;
+}
+
+.dropdown-link.logout:hover {
+  background: #fee;
+}
+
+/* Gallery and Post Card Styles */
+.art-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.art-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.art-image {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+
+.art-details {
+  padding: 16px;
+}
+
+.art-stats {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.art-stats button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.art-stats button:hover {
+  background: #f5f5f5;
+}
+
+.art-stats button.liked {
+  background: #ffe0e0;
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.comments {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.comment {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.add-comment {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.add-comment input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.add-comment button {
+  padding: 8px 20px;
+  background: #A8C3A0;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-comment button:hover {
+  background: #8faa87;
+}
+
+.post-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+/* Upload Modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.art-stat-btn {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.art-stat-btn:hover {
+  background: #f5f5f5;
+}
+
+.art-stat-btn.liked {
+  background: #ffe0e0;
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.comment {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #A8C3A0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.create-post-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.post-form {
+  display: flex;
+  gap: 12px;
+}
+
+.post-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.post-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.post-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.post-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #A8C3A0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+}
+
+.post-content {
+  line-height: 1.6;
+}
+
+/* Landing Page Button Group - Force Center */
+.button-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center; /* Center the buttons */
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Only apply flex-end to modal button groups */
+.modal .button-group {
+  justify-content: flex-end;
+}
+
+/* Ensure landing page buttons stay centered */
+#landing-page .button-group {
+  justify-content: center !important;
+}
+
+/* Make sure buttons don't stretch full width */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
