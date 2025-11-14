@@ -236,46 +236,92 @@ function setupAuthForm() {
 
 // ========== DASHBOARD LISTENERS ==========
 function setupPageListeners() {
+  console.log("Setting up page listeners...");
+  
   // Setup avatar dropdown
   const navAvatar = document.getElementById('nav-avatar');
   const dropdown = document.getElementById('profile-dropdown');
+  
+  console.log("Nav avatar:", navAvatar);
+  console.log("Dropdown:", dropdown);
   
   if (navAvatar && dropdown) {
     // Remove existing listener by cloning
     const newAvatar = navAvatar.cloneNode(true);
     navAvatar.parentNode.replaceChild(newAvatar, navAvatar);
     
+    console.log("Setting up click listener on new avatar");
     newAvatar.addEventListener('click', (e) => {
+      console.log("Avatar clicked!");
       e.stopPropagation();
-      dropdown.classList.toggle('hidden');
+      e.preventDefault();
+      
+      // Toggle display directly instead of using class
+      if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+        dropdown.style.display = 'block';
+        console.log("Dropdown now showing");
+      } else {
+        dropdown.style.display = 'none';
+        console.log("Dropdown now hidden");
+      }
     });
+    
+    // Close dropdown when clicking outside
+    const clickOutsideHandler = (e) => {
+      if (dropdown && !e.target.closest('.nav-user')) {
+        dropdown.style.display = 'none';
+        console.log("Dropdown closed by clicking outside");
+      }
+    };
+    
+    // Remove old listeners and add new one
+    document.removeEventListener('click', clickOutsideHandler);
+    setTimeout(() => {
+      document.addEventListener('click', clickOutsideHandler);
+    }, 100);
+  } else {
+    console.error("Could not find nav-avatar or profile-dropdown!");
   }
-  
-  // Close dropdown when clicking outside
-  document.addEventListener('click', (e) => {
-    if (dropdown && !e.target.closest('.nav-user')) {
-      dropdown.classList.add('hidden');
-    }
-  });
   
   // Setup logout button
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
-    const newLogoutBtn = logoutBtn.cloneNode(true);
-    logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+    console.log("Setting up logout button");
     
-    newLogoutBtn.addEventListener('click', () => {
-      logout();
+    // Remove any existing listeners
+    logoutBtn.onclick = null;
+    
+    // Add new listener
+    logoutBtn.addEventListener('click', function(e) {
+      console.log("Logout clicked");
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Clear all user data directly
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('userLocation');
+      localStorage.removeItem('userBio');
+      localStorage.removeItem('programProgress');
+      
+      console.log("User data cleared");
+      
+      // Navigate to landing
       navigate('landing');
       showToast('Signed out successfully');
     });
+  } else {
+    console.error("Could not find logout button!");
   }
 }
 
 // Profile Edit Functions
 window.enterProfileEditMode = function() {
+  console.log("Entering edit mode...");
   document.getElementById('name-display').style.display = 'none';
   document.getElementById('name-input').style.display = 'block';
+  document.getElementById('location-display').style.display = 'none';
+  document.getElementById('location-input').style.display = 'block';
   document.getElementById('bio-display').style.display = 'none';
   document.getElementById('bio-input').style.display = 'block';
   document.getElementById('edit-profile-btn').style.display = 'none';
@@ -283,12 +329,21 @@ window.enterProfileEditMode = function() {
 };
 
 window.cancelProfileEdit = function() {
+  console.log("Canceling edit...");
   const user = getCurrentUser();
   document.getElementById('name-input').value = user.name;
-  document.getElementById('bio-input').value = 'On a journey of healing and self-discovery. 🌱';
+  
+  // Get saved values or use defaults
+  const savedLocation = localStorage.getItem('userLocation') || 'Not set';
+  const savedBio = localStorage.getItem('userBio') || 'On a journey of healing and self-discovery. 🌱';
+  
+  document.getElementById('location-input').value = savedLocation;
+  document.getElementById('bio-input').value = savedBio;
   
   document.getElementById('name-display').style.display = 'block';
   document.getElementById('name-input').style.display = 'none';
+  document.getElementById('location-display').style.display = 'block';
+  document.getElementById('location-input').style.display = 'none';
   document.getElementById('bio-display').style.display = 'block';
   document.getElementById('bio-input').style.display = 'none';
   document.getElementById('edit-profile-btn').style.display = 'block';
@@ -296,22 +351,30 @@ window.cancelProfileEdit = function() {
 };
 
 window.saveProfileChanges = function() {
+  console.log("Saving profile changes...");
   const newName = document.getElementById('name-input').value;
+  const newLocation = document.getElementById('location-input').value;
   const newBio = document.getElementById('bio-input').value;
   
   // Update localStorage
   const user = getCurrentUser();
   user.name = newName;
   localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem('userLocation', newLocation);
+  localStorage.setItem('userBio', newBio);
   
   // Update display
   document.getElementById('name-display').textContent = newName;
+  document.getElementById('location-display').textContent = newLocation;
   document.getElementById('bio-display').textContent = newBio;
-  document.getElementById('profile-name-display').textContent = newName;
+  document.getElementById('profile-display-name').textContent = newName;
   
-  // Update avatar
+  // Update avatar with new initials
   const initials = newName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  document.getElementById('profile-avatar').textContent = initials;
+  const avatars = document.querySelectorAll('.avatar, #nav-avatar');
+  avatars.forEach(avatar => {
+    avatar.textContent = initials;
+  });
   
   cancelProfileEdit();
   showToast('Profile updated successfully!');
@@ -387,6 +450,10 @@ function renderProfilePage() {
   // Get user initials
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   
+  // Get saved profile data
+  const savedLocation = localStorage.getItem('userLocation') || 'Not set';
+  const savedBio = localStorage.getItem('userBio') || 'On a journey of healing and self-discovery. 🌱';
+  
   profilePage.innerHTML = `
     <!-- Navigation -->
     <nav class="navbar">
@@ -433,12 +500,12 @@ function renderProfilePage() {
               </button>
             </div>
           </div>
-          <div class="nav-user">
+          <div class="nav-user" style="position: relative;">
             <div id="nav-avatar" class="avatar clickable">${initials}</div>
-            <div id="profile-dropdown" class="dropdown hidden">
-              <p id="dropdown-name" class="dropdown-name">${user.name}</p>
-              <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-              <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
+            <div id="profile-dropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); padding: 0.5rem; min-width: 200px; z-index: 1000;">
+              <p id="dropdown-name" class="dropdown-name" style="padding: 0.5rem 1rem; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${user.name}</p>
+              <button class="dropdown-link" onclick="navigate('profile')" style="width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; cursor: pointer; border-radius: 0.25rem; transition: background 0.2s;">View Profile</button>
+              <button id="logout-btn" class="dropdown-link logout" style="width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; cursor: pointer; color: #dc2626; border-radius: 0.25rem; transition: background 0.2s;">Sign Out</button>
             </div>
           </div>
         </div>
@@ -532,6 +599,57 @@ function renderProfilePage() {
                         </div>
                         <div style="font-size: 2rem; font-weight: 700; color: #1f2937;" id="stat-community-posts">0</div>
                         <p style="font-size: 0.875rem; color: #374151;">Community Posts</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; gap: 2rem; grid-template-columns: 1fr; margin-top: 2rem;">
+            <!-- Edit Profile Section -->
+            <div>
+                <div class="card">
+                    <div style="margin-bottom: 2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h2 style="font-size: 1.5rem; font-weight: 600; color: #1f2937;">Personal Information</h2>
+                            <button class="btn btn-outline" id="edit-profile-btn" onclick="enterProfileEditMode()">Edit Profile</button>
+                        </div>
+
+                        <div style="display: grid; gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">Full Name</label>
+                                <div id="name-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; color: #1f2937;">${user.name}</div>
+                                <input type="text" id="name-input" style="display: none; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; font-size: 1rem;" value="${user.name}">
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">Email Address</label>
+                                <div style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; color: #1f2937;">${user.email}</div>
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">Location</label>
+                                <div id="location-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; color: #1f2937;">${savedLocation}</div>
+                                <input type="text" id="location-input" style="display: none; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; font-size: 1rem;" placeholder="e.g., San Francisco, CA" value="${savedLocation}">
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">About Me</label>
+                                <div id="bio-display" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.75rem; color: #1f2937;">${savedBio}</div>
+                                <textarea id="bio-input" style="display: none; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.75rem; font-size: 1rem; resize: none; min-height: 120px;" placeholder="Share your journey and what brings you to HeArtSpace...">${savedBio}</textarea>
+                            </div>
+                        </div>
+
+                        <div id="profile-button-group" style="display: none; gap: 0.75rem; margin-top: 1.5rem;">
+                            <button class="btn btn-primary" onclick="saveProfileChanges()" style="flex: 1; padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: 500; cursor: pointer; border: none; background: linear-gradient(135deg, #f472b6 0%, #c084fc 100%); color: white;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; margin-right: 0.5rem;">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                Save Changes
+                            </button>
+                            <button class="btn btn-outline" onclick="cancelProfileEdit()" style="flex: 1; padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: 500; cursor: pointer; background: white; border: 1px solid #d1d5db; color: #374151;">Cancel</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -790,12 +908,12 @@ function renderProgramsPage() {
               </button>
             </div>
           </div>
-          <div class="nav-user">
+          <div class="nav-user" style="position: relative;">
             <div id="nav-avatar" class="avatar clickable">JD</div>
-           <div id="profile-dropdown" class="dropdown hidden">
-    <p id="dropdown-name" class="dropdown-name">User Name</p>
-    <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-    <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
+           <div id="profile-dropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); padding: 0.5rem; min-width: 200px; z-index: 1000;">
+    <p id="dropdown-name" class="dropdown-name" style="padding: 0.5rem 1rem; font-weight: 600; border-bottom: 1px solid #e5e7eb;">User Name</p>
+    <button class="dropdown-link" onclick="navigate('profile')" style="width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; cursor: pointer; border-radius: 0.25rem; transition: background 0.2s;">View Profile</button>
+    <button id="logout-btn" class="dropdown-link logout" style="width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; cursor: pointer; color: #dc2626; border-radius: 0.25rem; transition: background 0.2s;">Sign Out</button>
   </div>
           </div>
         </div>
@@ -836,6 +954,11 @@ function renderProgramsPage() {
   updateCurrentUserDisplay();
   loadProgramProgress();
   renderProgramsList();
+  
+  // Setup listeners after a short delay to ensure DOM is ready
+  setTimeout(() => {
+    setupPageListeners();
+  }, 100);
 }
 
 // Render Programs List
@@ -1116,12 +1239,12 @@ function renderCommunityPage() {
               </button>
             </div>
           </div>
-          <div class="nav-user">
+          <div class="nav-user" style="position: relative;">
             <div id="nav-avatar" class="avatar clickable">JD</div>
-            <div id="profile-dropdown" class="dropdown hidden">
-    <p id="dropdown-name" class="dropdown-name">User Name</p>
-    <button class="dropdown-link" onclick="navigate('profile')">View Profile</button>
-    <button id="logout-btn" class="dropdown-link logout">Sign Out</button>
+            <div id="profile-dropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); padding: 0.5rem; min-width: 200px; z-index: 1000;">
+    <p id="dropdown-name" class="dropdown-name" style="padding: 0.5rem 1rem; font-weight: 600; border-bottom: 1px solid #e5e7eb;">User Name</p>
+    <button class="dropdown-link" onclick="navigate('profile')" style="width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; cursor: pointer; border-radius: 0.25rem; transition: background 0.2s;">View Profile</button>
+    <button id="logout-btn" class="dropdown-link logout" style="width: 100%; text-align: left; padding: 0.75rem 1rem; background: none; border: none; cursor: pointer; color: #dc2626; border-radius: 0.25rem; transition: background 0.2s;">Sign Out</button>
   </div>
           </div>
         </div>
@@ -1162,6 +1285,11 @@ function renderCommunityPage() {
   
   updateCurrentUserDisplay();
   loadPosts();
+  
+  // Setup listeners after a short delay to ensure DOM is ready
+  setTimeout(() => {
+    setupPageListeners();
+  }, 100);
 }
 
 async function loadPosts() {
@@ -1347,6 +1475,11 @@ function renderGalleryPage() {
   
   updateCurrentUserDisplay();
   loadGallery();
+  
+  // Setup listeners after a short delay to ensure DOM is ready
+  setTimeout(() => {
+    setupPageListeners();
+  }, 100);
 }
 
 async function loadGallery() {
@@ -1509,4 +1642,5 @@ function showUploadModal() {
         showToast('Failed to upload: ' + result.error);
       }
     });
-  }}
+  }
+}
