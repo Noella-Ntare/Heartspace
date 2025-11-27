@@ -2430,7 +2430,7 @@ async function deleteArtwork(artworkId) {
   
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`http://localhost:3000/api/artworks/${artworkId}`, {
+    const response = await fetch(`https://heartspace-backend.vercel.app/api/artworks/${artworkId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
