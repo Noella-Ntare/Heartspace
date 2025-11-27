@@ -2163,7 +2163,7 @@ async function deletePost(postId) {
   
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`http://localhost:3000/api/posts/${postId}`, {
+    const response = await fetch(`https://heartspace-backend.vercel.app/api/posts/${postId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
