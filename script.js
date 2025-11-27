@@ -112,33 +112,315 @@ function navigate(page) {
       console.log("Rendering programs page...");
       renderProgramsPage();
       updateCurrentUserDisplay();
-      setupPageListeners();
     } else if (page === 'community') {
       renderCommunityPage();
       updateCurrentUserDisplay();
-      setupPageListeners();
     } else if (page === 'gallery') {
       renderGalleryPage();
       updateCurrentUserDisplay();
-      setupPageListeners();
     } else if (page === 'profile') {
       renderProfilePage();
     } else if (page === 'dashboard') {
       updateCurrentUserDisplay();
-      setupPageListeners();
+      loadDashboardData();
     }
+    
+    // IMPORTANT: Initialize hamburger menu after page renders
+    setTimeout(() => {
+      setupPageListeners();
+      initializeHamburgerMenu();
+    }, 100);
   } else {
     console.error("Page element not found:", `${page}-page`);
   }
+}
+
+// ========== DASHBOARD DATA ==========
+async function loadDashboardData() {
+  // Show loading overlay on dashboard
+  showDashboardLoading();
   
-  // Re-initialize hamburger menu
-  setTimeout(initializeHamburgerMenu, 100);
+  loadProgramProgress();
+  
+  // Calculate active programs
+  const activePrograms = programs.filter(p => calculateProgramProgress(p.id) > 0).length;
+  
+  // Calculate total completed chapters
+  let completedChapters = 0;
+  programs.forEach(program => {
+    if (program.chapters) {
+      completedChapters += program.chapters.filter(ch => 
+        isChapterCompleted(program.id, ch.id)
+      ).length;
+    }
+  });
+  
+  // Get artworks count
+  const artworksResult = await getArtworks();
+  const user = getCurrentUser();
+  const myArtworks = artworksResult.success ? 
+    artworksResult.data.filter(a => a.user.id === user.id).length : 0;
+  
+  // Get posts count
+  const postsResult = await getPosts();
+  const myPosts = postsResult.success ? 
+    postsResult.data.filter(p => p.user.id === user.id).length : 0;
+  
+  // Update stats cards
+  const statsCards = document.querySelectorAll('.stat-card');
+  if (statsCards.length >= 3) {
+    statsCards[0].querySelector('.stat-value').textContent = activePrograms || 0;
+    statsCards[1].querySelector('.stat-value').textContent = completedChapters || 0;
+    statsCards[2].querySelector('.stat-value').textContent = myPosts || 0;
+    
+    // Update labels
+    statsCards[0].querySelector('.stat-label').textContent = 'Active Programs';
+    statsCards[1].querySelector('.stat-label').textContent = 'Completed Chapters';
+    statsCards[2].querySelector('.stat-label').textContent = 'Community Posts';
+  }
+  
+  // Update programs list
+  const programsList = document.querySelector('.programs-list');
+  if (programsList) {
+    programsList.innerHTML = '';
+    
+    // Get top 3 programs with progress
+    const programsWithProgress = programs
+      .map(p => ({ ...p, progress: calculateProgramProgress(p.id) }))
+      .filter(p => p.progress > 0)
+      .sort((a, b) => b.progress - a.progress)
+      .slice(0, 3);
+    
+    if (programsWithProgress.length === 0) {
+      programsList.innerHTML = '<p class="text-muted-foreground">No active programs yet. <button class="text-link" onclick="navigate(\'programs\')">Start a program</button></p>';
+    } else {
+      programsWithProgress.forEach(program => {
+        const programItem = document.createElement('div');
+        programItem.className = 'program-item hover-lift';
+        programItem.style.cursor = 'pointer';
+        programItem.onclick = () => {
+          navigate('programs');
+          setTimeout(() => openProgram(program.id), 100);
+        };
+        
+        programItem.innerHTML = `
+          <div class="program-icon" style="background-color: ${program.color};">${program.icon}</div>
+          <div class="program-details">
+            <div class="program-header">
+              <h4>${program.name}</h4>
+              <span class="text-sm text-muted-foreground">${program.progress}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${program.progress}%; background: ${program.color};"></div>
+            </div>
+          </div>
+        `;
+        programsList.appendChild(programItem);
+      });
+    }
+  }
+  
+  // Load and display sessions
+  await loadDashboardSessions();
+  
+  // Hide loading overlay
+  hideDashboardLoading();
+}
+
+function showDashboardLoading() {
+  // Create loading overlay if it doesn't exist
+  let overlay = document.getElementById('dashboard-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'dashboard-loading-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(8px);
+    `;
+    
+    overlay.innerHTML = `
+      <div style="text-align: center;">
+        <div style="
+          width: 50px;
+          height: 50px;
+          border: 4px solid #f3f4f6;
+          border-top: 4px solid #ec4899;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 1rem;
+        "></div>
+        <p style="color: #6b7280; font-size: 1rem;">Loading your dashboard...</p>
+      </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    
+    document.body.appendChild(overlay);
+  } else {
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideDashboardLoading() {
+  const overlay = document.getElementById('dashboard-loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
+async function loadDashboardSessions() {
+  const sessionsList = document.querySelector('.sessions-list');
+  if (!sessionsList) return;
+  
+  console.log("Loading dashboard sessions...");
+  
+  // Use API instead of localStorage
+  const result = await getSessions();
+  if (!result.success) {
+    console.error("Failed to load sessions:", result.error);
+    sessionsList.innerHTML = '<p class="text-muted-foreground">Failed to load sessions.</p>';
+    return;
+  }
+  
+  const sessions = result.data;
+  const user = getCurrentUser();
+  
+  console.log("All sessions from API:", sessions);
+  console.log("Current user:", user);
+  
+  if (!sessions || sessions.length === 0) {
+    sessionsList.innerHTML = '<p class="text-muted-foreground">No sessions yet. <button class="text-link" onclick="navigate(\'community\'); setTimeout(() => switchCommunityTab(\'sessions\'), 100)">Create or join one</button></p>';
+    return;
+  }
+  
+  // Filter: sessions user is attending or created, and upcoming only
+  const now = new Date();
+  const upcomingSessions = sessions
+    .filter(s => {
+      // Parse session date - handle both formats
+      let sessionDate;
+      try {
+        // If date is already a Date object or ISO string
+        sessionDate = new Date(s.date);
+        
+        // If time is separate, we need to combine them
+        if (s.time) {
+          const dateStr = sessionDate.toISOString().split('T')[0]; // Get YYYY-MM-DD
+          sessionDate = new Date(`${dateStr}T${s.time}`);
+        }
+      } catch (e) {
+        console.error("Error parsing date:", e, s);
+        return false;
+      }
+      
+      // Check if user is the creator OR is in attendees list
+      const isCreator = s.userId === user.id;
+      const isAttendee = s.attendees && s.attendees.some(a => a.userId === user.id);
+      const isUpcoming = sessionDate > now;
+      
+      console.log(`Session "${s.title}":`, { 
+        isCreator, 
+        isAttendee, 
+        isUpcoming,
+        sessionDate: sessionDate.toISOString(),
+        now: now.toISOString(),
+        userId: s.userId,
+        currentUserId: user.id,
+        attendees: s.attendees
+      });
+      
+      return isUpcoming && (isCreator || isAttendee);
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA - dateB;
+    })
+    .slice(0, 3);
+  
+  console.log("Filtered upcoming sessions:", upcomingSessions);
+  
+  sessionsList.innerHTML = '';
+  
+  if (upcomingSessions.length === 0) {
+    sessionsList.innerHTML = '<p class="text-muted-foreground">No upcoming sessions. <button class="text-link" onclick="navigate(\'community\'); setTimeout(() => switchCommunityTab(\'sessions\'), 100)">Create or join one</button></p>';
+    return;
+  }
+  
+  upcomingSessions.forEach(session => {
+    let sessionDate = new Date(session.date);
+    if (session.time) {
+      const dateStr = sessionDate.toISOString().split('T')[0];
+      sessionDate = new Date(`${dateStr}T${session.time}`);
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const sessionDay = new Date(sessionDate);
+    sessionDay.setHours(0, 0, 0, 0);
+    
+    let dateText;
+    if (sessionDay.getTime() === today.getTime()) {
+      dateText = 'Today';
+    } else if (sessionDay.getTime() === tomorrow.getTime()) {
+      dateText = 'Tomorrow';
+    } else {
+      dateText = sessionDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+    
+    const timeText = sessionDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    
+    const sessionItem = document.createElement('div');
+    sessionItem.className = 'session-item hover-lift';
+    sessionItem.style.cursor = 'pointer';
+    sessionItem.onclick = () => {
+      navigate('community');
+      setTimeout(() => switchCommunityTab('sessions'), 100);
+    };
+    
+    sessionItem.innerHTML = `
+      <h4 class="text-sm mb-1">${session.title}</h4>
+      <p class="text-xs text-muted-foreground mb-2">${dateText} at ${timeText}</p>
+      <div class="session-attendees">
+        <svg class="attendee-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span>${session.attendees ? session.attendees.length : 0} attending</span>
+      </div>
+    `;
+    sessionsList.appendChild(sessionItem);
+  });
 }
 
 // ========== HAMBURGER MENU ==========
 function initializeHamburgerMenu() {
+  console.log("Initializing hamburger menu...");
+  
   const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
   const navLinks = document.querySelector('.nav-links');
+  
+  console.log("Toggle button:", mobileMenuToggle);
+  console.log("Nav links:", navLinks);
   
   if (mobileMenuToggle && navLinks) {
     // Remove old listeners to avoid duplicates
@@ -146,25 +428,39 @@ function initializeHamburgerMenu() {
     mobileMenuToggle.parentNode.replaceChild(newToggle, mobileMenuToggle);
     
     newToggle.addEventListener('click', function(e) {
+      console.log("Hamburger clicked!");
       e.stopPropagation();
+      
+      const isActive = navLinks.classList.contains('active');
+      console.log("Menu is currently:", isActive ? "active" : "inactive");
+      
       navLinks.classList.toggle('active');
       newToggle.classList.toggle('active');
+      
+      console.log("Menu is now:", navLinks.classList.contains('active') ? "active" : "inactive");
     });
     
+    // Close menu when clicking nav links
     const navLinkButtons = navLinks.querySelectorAll('.nav-link');
     navLinkButtons.forEach(link => {
       link.addEventListener('click', function() {
+        console.log("Nav link clicked, closing menu");
         navLinks.classList.remove('active');
         newToggle.classList.remove('active');
       });
     });
     
+    // Close menu when clicking outside
     document.addEventListener('click', function(e) {
-      if (!e.target.closest('.nav-left') && !e.target.closest('.mobile-menu-toggle')) {
+      if (!e.target.closest('.nav-content')) {
         navLinks.classList.remove('active');
         newToggle.classList.remove('active');
       }
     });
+    
+    console.log("Hamburger menu initialized successfully");
+  } else {
+    console.error("Could not find hamburger menu elements!");
   }
 }
 
@@ -234,6 +530,7 @@ function setupAuthForm() {
   }
 }
 
+
 // ========== DASHBOARD LISTENERS ==========
 function setupPageListeners() {
   console.log("Setting up page listeners...");
@@ -246,6 +543,10 @@ function setupPageListeners() {
   console.log("Dropdown:", dropdown);
   
   if (navAvatar && dropdown) {
+    // Remove the hidden class if it exists
+    dropdown.classList.remove('hidden');
+    dropdown.style.display = 'none';
+    
     // Remove existing listener by cloning
     const newAvatar = navAvatar.cloneNode(true);
     navAvatar.parentNode.replaceChild(newAvatar, navAvatar);
@@ -255,6 +556,9 @@ function setupPageListeners() {
       console.log("Avatar clicked!");
       e.stopPropagation();
       e.preventDefault();
+      
+      // Remove hidden class and toggle display
+      dropdown.classList.remove('hidden');
       
       // Toggle display directly instead of using class
       if (dropdown.style.display === 'none' || dropdown.style.display === '') {
@@ -381,6 +685,20 @@ window.saveProfileChanges = function() {
   updateCurrentUserDisplay();
 };
 
+// Profile sign out function
+window.handleProfileSignout = function() {
+  // Clear all user data
+  localStorage.removeItem('user');
+  localStorage.removeItem('token');
+  localStorage.removeItem('userLocation');
+  localStorage.removeItem('userBio');
+  localStorage.removeItem('programProgress');
+  
+  // Navigate to landing
+  navigate('landing');
+  showToast('Signed out successfully');
+};
+
 async function loadProfileStats() {
   console.log("Loading profile stats...");
   
@@ -456,7 +774,7 @@ function renderProfilePage() {
   
   profilePage.innerHTML = `
     <!-- Navigation -->
-    <nav class="navbar">
+     <class="navbar">
       <div class="container">
         <div class="nav-content">
           <div class="nav-left">
@@ -468,6 +786,14 @@ function renderProfilePage() {
               </div>
               <span class="font-semibold">HeArtSpace</span>
             </div>
+
+ <!-- Hamburger Menu Button -->
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button<nav>
+
             <div class="nav-links">
               <button class="nav-link" onclick="navigate('dashboard')">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -652,6 +978,22 @@ function renderProfilePage() {
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Sign Out Section -->
+        <div style="margin-top: 2rem;">
+            <div class="card" style="text-align: center; padding: 2rem;">
+                <h3 style="font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Sign Out</h3>
+                <p style="color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem;">You'll need to sign in again to access your account</p>
+                <button class="btn" onclick="handleProfileSignout()" style="padding: 0.75rem 2rem; border-radius: 9999px; font-weight: 500; cursor: pointer; border: 1px solid #dc2626; background: white; color: #dc2626; transition: all 0.2s;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; margin-right: 0.5rem;">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Sign Out
+                </button>
             </div>
         </div>
     </div>
@@ -876,6 +1218,14 @@ function renderProgramsPage() {
               </div>
               <span class="font-semibold">HeArtSpace</span>
             </div>
+
+ <!-- Hamburger Menu Button -->
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+
             <div class="nav-links">
               <button class="nav-link" onclick="navigate('dashboard')">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1091,22 +1441,183 @@ function renderProgramChapters() {
 
 // Open Chapter Content
 function openChapter(chapterId) {
+  console.log("Opening chapter:", chapterId);
   selectedChapter = selectedProgram.chapters.find(ch => ch.id === chapterId);
-  if (!selectedChapter) return;
+  if (!selectedChapter) {
+    console.error("Chapter not found:", chapterId);
+    return;
+  }
 
   document.getElementById('programs-view').style.display = 'none';
   document.getElementById('chapters-view').style.display = 'none';
   document.getElementById('content-view').style.display = 'block';
 
   renderChapterContent();
+  
+  // Scroll to top when opening a new chapter
+  window.scrollTo(0, 0);
 }
+
+// Chapter content library
+const chapterContent = {
+  // Emotional Wellness chapters
+  'ew-1': {
+    intro: `Imagine this: a soft, warm room filled with quiet light. The kind that invites you to breathe a little slower, to unclench your jaw, to simply be. This is where your feelings live — the full spectrum of them. You don't have to analyze or fix them here. You're only here to visit, to listen, to meet what's already been waiting for your attention.`,
+    body: `Maybe you notice a trace of sadness that lingers at the edge of your chest, or perhaps a spark of joy you didn't realize was still glowing beneath your ribs. Every feeling carries a message, but not all messages need to be decoded immediately. Some only ask to be acknowledged.
+
+It's natural to resist or label emotions as "good" or "bad." But when you allow yourself to meet your feelings rather than manage them, something magical happens — they soften. They become less overwhelming and more like gentle waves you can float on instead of fight against.`,
+    exercise: `Close your eyes for a moment and visualize that feeling as a color, a shape, or a word. Draw it or write it down. Let it live on paper, safely outside of you — not as something to fix, but something to understand.`,
+    reflection: `What feeling visited you today? Where in your body did it show up — in your shoulders, your chest, your stomach, your throat?`
+  },
+  'ew-2': {
+    intro: `There are moments when emotions feel like storms — sudden, intense, and impossible to control. Your heart races, your thoughts spiral, and you feel like you're drowning in your own feelings. But here's the truth: you are not your emotions. You are the sky that holds the storm.`,
+    body: `Emotional regulation isn't about suppressing what you feel. It's about learning to ride the waves with grace. When big feelings arise, your body is trying to protect you, even if it doesn't feel that way. The key is to work with your nervous system, not against it.
+
+Breathing is your superpower. When you slow your breath, you send a signal to your brain that says, "I'm safe." Try the 4-7-8 technique: breathe in for 4 counts, hold for 7, exhale for 8. Feel how your body responds. This simple practice can shift you from chaos to calm in moments.`,
+    exercise: `Practice the STOP technique: Stop what you're doing. Take three deep breaths. Observe what you're feeling without judgment. Proceed with intention. Write down one situation this week where you can use this technique.`,
+    reflection: `When was the last time you felt overwhelmed by emotion? What would it feel like to respond to that moment with compassion instead of criticism?`
+  },
+  'ew-3': {
+    intro: `Resilience isn't about being unbreakable. It's about bending without breaking, falling and rising again, knowing that storms pass and the sun always returns. You've survived every difficult moment in your life so far — that alone is proof of your incredible strength.`,
+    body: `Building emotional resilience is like strengthening a muscle. Each time you face a challenge and choose to show up anyway, you're building that muscle. Each time you acknowledge your pain without letting it define you, you grow stronger.
+
+Think of resilience as your inner roots. The deeper they grow, the stronger you stand when life's winds blow. These roots are built through self-compassion, healthy connections, and the belief that you have the capacity to handle what comes your way.`,
+    exercise: `Create a "Resilience Toolkit" — list 5 things that help you feel grounded when life gets tough. It could be a song, a person to call, a walk in nature, journaling, or a comforting ritual. Keep this list somewhere visible.`,
+    reflection: `Think of a time you overcame something difficult. What inner strengths did you use? How can you call on those strengths today?`
+  },
+  'ew-4': {
+    intro: `Your feelings are valid. All of them. Even the messy ones, the complicated ones, the ones that make you uncomfortable. But valid doesn't mean they need to control your actions or relationships. Learning to express emotions in healthy ways is one of the most powerful gifts you can give yourself.`,
+    body: `Many of us learned to suppress our emotions or express them explosively. Neither serves us well. Healthy emotional expression is about finding the middle ground — being honest about what you feel while respecting yourself and others.
+
+Use "I" statements: "I feel hurt when..." instead of "You always..." This shifts from blame to sharing your experience. It opens doors instead of slamming them. Practice saying what you need: "I need some time to process this" or "I need reassurance right now." Your needs matter.`,
+    exercise: `Write a letter to someone (you don't have to send it) expressing something you've held back. Notice what emotions arise as you write. This practice helps you understand what you truly feel and need.`,
+    reflection: `What emotion do you find hardest to express? What would it feel like to share that emotion in a safe, healthy way?`
+  },
+  'ew-5': {
+    intro: `Inner peace isn't something you find once and keep forever. It's a practice, a daily return to center, a gentle reminder that you are more than your circumstances. Peace lives in the quiet moments — in your morning coffee, in a deep breath, in choosing stillness over chaos.`,
+    body: `Cultivating inner peace means creating small rituals that anchor you. Maybe it's five minutes of meditation, a gratitude practice, or simply sitting in silence before the day begins. These moments aren't luxuries — they're necessities.
+
+Peace also means accepting what you cannot control and releasing what no longer serves you. It's the art of letting go, again and again, until your hands are light enough to hold joy. When you stop fighting reality and start flowing with it, you discover a calm that external circumstances cannot disturb.`,
+    exercise: `Create a "Peace Anchor" — a simple ritual you can do daily. It might be lighting a candle while setting an intention, doing gentle stretches, or writing three things you're grateful for. Commit to this practice for 7 days and notice how you feel.`,
+    reflection: `If your life had more inner peace, what would change? What small step can you take today toward that vision?`
+  },
+
+  // Self-Love Mastery chapters
+  'sl-1': {
+    intro: `Self-love isn't selfish. It's not narcissistic. It's not about perfection or always feeling good about yourself. Self-love is the radical act of treating yourself with the same kindness, patience, and compassion you'd offer to someone you deeply care about.`,
+    body: `We often confuse self-love with self-esteem. Self-esteem fluctuates based on achievements and external validation. Self-love is unconditional — it's there on your best days and your worst days. It's the voice that says, "You're worthy, simply because you exist."
+
+Self-love means recognizing your inherent value, not because of what you do, but because of who you are. It's about meeting yourself where you are, with all your imperfections and humanness, and saying, "You're enough."`,
+    exercise: `Stand in front of a mirror and say: "I am worthy of love and belonging exactly as I am." Notice any resistance that comes up. This isn't about believing it immediately — it's about practicing the words until they become true.`,
+    reflection: `What would change in your life if you truly believed you were worthy of love? What stories would you need to release?`
+  },
+  'sl-2': {
+    intro: `That voice in your head — the one that criticizes every mistake, magnifies every flaw, and keeps a running list of your failures — it's not protecting you. It's holding you hostage. Learning to release self-judgment is one of the most liberating things you'll ever do.`,
+    body: `Self-judgment often stems from internalized messages we received growing up. Maybe you were told you weren't good enough, smart enough, or worthy enough. Those messages became the lens through which you see yourself. But they're not truth — they're just old programming.
+
+When that critical voice appears, pause. Ask yourself: "Would I say this to a friend?" If not, why do you say it to yourself? Practice self-compassion instead. "I made a mistake, and that's okay. I'm learning and growing." Replace judgment with curiosity.`,
+    exercise: `Keep a "Self-Compassion Journal" for one week. When you catch yourself in self-judgment, write down what you said to yourself, then rewrite it with compassion. Notice the difference in how each version makes you feel.`,
+    reflection: `What harsh judgment do you carry about yourself? What would happen if you let it go?`
+  },
+  'sl-3': {
+    intro: `Self-care isn't bubble baths and face masks (though those are nice). Real self-care is saying no when you mean no. It's going to therapy. It's setting boundaries. It's eating nourishing food and moving your body in ways that feel good. It's choosing rest over productivity.`,
+    body: `Self-care is about creating a life that you don't need to escape from. It's the small, daily choices that honor your well-being — getting enough sleep, drinking water, taking breaks, asking for help. These aren't indulgences; they're how you sustain yourself.
+
+Create a self-care practice that's sustainable, not performative. What do you actually need? Maybe it's quiet mornings, creative time, or regular connection with loved ones. Self-care looks different for everyone. What matters is that it replenishes you, not depletes you.`,
+    exercise: `Create a "Weekly Self-Care Menu" with different categories: Physical (movement, rest), Emotional (journaling, therapy), Social (quality time), Creative (art, music), and Spiritual (meditation, nature). Pick one thing from each category to do this week.`,
+    reflection: `What does your body, mind, and soul need right now? What's one way you can honor that need today?`
+  },
+  'sl-4': {
+    intro: `Boundaries are not walls; they're bridges to healthier relationships. They're the practice of honoring your limits, protecting your energy, and teaching people how to treat you. Boundaries aren't about pushing people away — they're about creating space for authentic connection.`,
+    body: `Many of us struggle with boundaries because we fear rejection or conflict. We say yes when we mean no. We tolerate behavior that hurts us. We give until we're empty. But here's the truth: people who love you will respect your boundaries. Those who don't... well, that tells you everything you need to know.
+
+Setting boundaries is an act of self-love. "I can't take on that project right now." "I need some alone time to recharge." "That doesn't work for me." These phrases aren't selfish — they're honest. And honesty creates space for genuine relationships.`,
+    exercise: `Identify one area where you need better boundaries (work, family, friendships, social media). Write down a specific boundary you want to set and how you'll communicate it. Practice saying it out loud until it feels natural.`,
+    reflection: `Where in your life are you giving more than you have? What boundary would help you feel more respected and valued?`
+  },
+  'sl-5': {
+    intro: `Self-love isn't a destination you reach and stay at forever. It's a daily practice, a returning to yourself, a choice to honor your worth even when the world tells you otherwise. Embodying self-love means integrating it into every aspect of your life — your choices, your relationships, your daily rituals.`,
+    body: `Living from a place of self-love transforms everything. You stop seeking external validation because you've found it within. You stop tolerating mistreatment because you know your worth. You stop abandoning yourself to please others because you've learned that your needs matter too.
+
+Self-love is reflected in how you speak to yourself, how you care for your body, how you spend your time, who you surround yourself with, and what you allow in your life. It's the quiet confidence that says, "I am enough, and I choose to live accordingly."`,
+    exercise: `Create a "Self-Love Declaration" — a personal manifesto of how you'll treat yourself going forward. Include statements like "I will honor my needs," "I will speak kindly to myself," "I will set boundaries that protect my peace." Read it daily.`,
+    reflection: `One year from now, how do you want to feel about yourself? What daily practices will help you get there?`
+  },
+
+  // Authentic Expression chapters
+  'ae-1': {
+    intro: `Underneath all the masks, the expectations, and the roles you play, there's a version of you that's been waiting to be seen. Your authentic self — the one who knows what you truly want, feel, and need. Discovering this self isn't about becoming someone new; it's about remembering who you've always been.`,
+    body: `Society teaches us to hide parts of ourselves that don't fit. We learn to be smaller, quieter, or different to be accepted. But in doing so, we lose touch with our authentic essence. Rediscovering your authentic self means questioning: "What do I actually believe? What do I genuinely enjoy? What matters to me?"
+
+Your authentic self speaks in whispers — in the things that light you up, the boundaries that feel necessary, the dreams you're afraid to voice. Start listening to these whispers. They're guiding you home to yourself.`,
+    exercise: `Complete these sentences honestly (don't censor yourself): "I feel most like myself when..." "I've been pretending that..." "If I were truly authentic, I would..." "What I really want is..." Notice what surprises you.`,
+    reflection: `When do you feel most like yourself? What parts of yourself have you been hiding, and why?`
+  },
+  'ae-2': {
+    intro: `We all wear masks — carefully crafted personas that help us navigate the world. The "strong one," the "nice one," the "successful one." These masks protected us once, but now they're suffocating. It's time to let them fall and reveal the tender, imperfect, beautiful human underneath.`,
+    body: `Your masks were survival strategies. Maybe you learned to be the peacekeeper to avoid conflict, or the overachiever to feel worthy, or the comedian to deflect pain. These roles served a purpose. But you're safe now to show up as you truly are.
+
+Dropping the mask doesn't mean becoming reckless or unfiltered. It means being honest about who you are, what you feel, and what you need. It means saying "I don't know" instead of pretending. It means admitting vulnerability instead of projecting strength you don't feel.`,
+    exercise: `Identify one mask you wear regularly. Journal about: Why did you create this mask? What are you afraid will happen if you drop it? What would it feel like to show up without it? Choose one small way to be more authentic this week.`,
+    reflection: `Who would you be if you weren't afraid of judgment? What mask are you ready to release?`
+  },
+  'ae-3': {
+    intro: `Your voice matters. Not the voice you think people want to hear, but your true voice — the one that speaks your truth, expresses your needs, and stands up for what matters to you. Finding your voice isn't about being loud; it's about being honest.`,
+    body: `Many of us learned to silence ourselves to keep the peace, to avoid rejection, or to be "likable." We swallowed our words, our opinions, our boundaries. But your silence comes at a cost — resentment, disconnection from yourself, and relationships built on false pretenses.
+
+Speaking your truth doesn't mean being harsh or unkind. It means saying, "This is how I feel," "This is what I need," "This doesn't align with my values." It means using your voice to advocate for yourself, even when your voice shakes.`,
+    exercise: `Practice using your voice in low-stakes situations first. Share your genuine opinion about a movie, express a preference about where to eat, or say no to something small you don't want to do. Build the muscle of speaking truthfully.`,
+    reflection: `What truth have you been holding back? What would it feel like to finally speak it?`
+  },
+  'ae-4': {
+    intro: `Authenticity isn't just about knowing yourself — it's about living in alignment with that knowledge. It's making choices that honor your values, even when it's uncomfortable. It's building a life that reflects who you truly are, not who you think you should be.`,
+    body: `Living authentically means your actions match your inner truth. If you value connection but spend all your time on social media, there's misalignment. If you claim to prioritize health but constantly neglect your needs, there's disconnection. Authenticity is closing these gaps.
+
+Start small. Say no to invitations that drain you. Pursue hobbies that genuinely interest you, not what's trendy. Spend time with people who see and accept your real self. Each aligned choice builds momentum toward an authentic life.`,
+    exercise: `Audit one area of your life (career, relationships, habits, schedule). Ask: "Does this align with my values? Does it honor who I really am?" Identify one thing that's out of alignment and one step you can take to realign it.`,
+    reflection: `If you were living authentically, what would be different? What's one choice you can make today that aligns with your true self?`
+  },
+  'ae-5': {
+    intro: `You are not like anyone else — and that's your superpower. Your quirks, your perspective, your experiences, your way of seeing the world... these are gifts, not flaws. Embracing your uniqueness isn't about being different for the sake of it; it's about celebrating the unrepeatable human you are.`,
+    body: `The world benefits from your unique contribution. No one else has your combination of talents, experiences, and heart. When you hide your uniqueness to fit in, you rob the world of what only you can offer.
+
+Embracing your uniqueness means letting go of comparison. Someone else's journey isn't a blueprint for yours. Your path is yours alone. Stop trying to be more like others and start being more like the most authentic version of yourself.`,
+    exercise: `Write a letter to yourself titled "What Makes Me Unique." List your quirks, your passions, your perspectives, your strengths. Celebrate these parts of yourself. Read this letter whenever you feel pressure to conform.`,
+    reflection: `What makes you uniquely you? How would your life change if you fully embraced and celebrated your uniqueness?`
+  }
+};
 
 // Render Chapter Content
 function renderChapterContent() {
-  if (!selectedProgram || !selectedChapter) return;
+  if (!selectedProgram || !selectedChapter) {
+    console.error("Missing program or chapter:", selectedProgram, selectedChapter);
+    return;
+  }
 
+  console.log("Rendering chapter:", selectedChapter.id);
   const container = document.getElementById('chapter-content');
   const isCompleted = isChapterCompleted(selectedProgram.id, selectedChapter.id);
+  
+  // Get chapter-specific content
+  const content = chapterContent[selectedChapter.id] || {
+    intro: 'Chapter content coming soon...',
+    body: '',
+    exercise: '',
+    reflection: 'What insights did you gain from this chapter?'
+  };
+  
+  // Find current chapter index and determine if there are prev/next chapters
+  const currentChapterIndex = selectedProgram.chapters.findIndex(ch => ch.id === selectedChapter.id);
+  console.log("Current chapter index:", currentChapterIndex, "out of", selectedProgram.chapters.length);
+  
+  const hasPrevious = currentChapterIndex > 0;
+  const hasNext = currentChapterIndex < selectedProgram.chapters.length - 1;
+  const previousChapter = hasPrevious ? selectedProgram.chapters[currentChapterIndex - 1] : null;
+  const nextChapter = hasNext ? selectedProgram.chapters[currentChapterIndex + 1] : null;
+  
+  console.log("Has previous:", hasPrevious, "Has next:", hasNext);
+  if (previousChapter) console.log("Previous chapter:", previousChapter.id);
+  if (nextChapter) console.log("Next chapter:", nextChapter.id);
 
   container.innerHTML = `
     <div class="chapter-content-header" style="background: ${selectedProgram.color}20; padding: 30px; border-radius: 16px; margin-bottom: 30px;">
@@ -1122,31 +1633,18 @@ function renderChapterContent() {
 
     <div class="chapter-content-body">
       <h2>Welcome to This Chapter</h2>
-      <p>
-        This is where your chapter content would be displayed. You can add text, images, videos, 
-        exercises, and interactive elements to guide your users through their healing journey.
-      </p>
+      <p>${content.intro}</p>
+      
+      ${content.body ? content.body.split('\n\n').map(para => `<p>${para}</p>`).join('') : ''}
 
-      <h3>Key Concepts</h3>
-      <ul>
-        <li>Understanding the foundation of this topic</li>
-        <li>Practical techniques you can apply immediately</li>
-        <li>Tools for self-reflection and growth</li>
-        <li>Building sustainable habits for lasting change</li>
-      </ul>
-
-      <h3>Practice Exercise</h3>
-      <p>
-        Take a few moments to reflect on what resonates with you. Consider journaling about your 
-        thoughts and feelings as you work through this material. Remember, healing is a journey, 
-        not a destination.
-      </p>
+      ${content.exercise ? `
+        <h3>Creative Invitation:</h3>
+        <p>${content.exercise}</p>
+      ` : ''}
 
       <div class="reflection-box" style="background: ${selectedProgram.color}15; padding: 20px; border-radius: 12px; border-left: 4px solid ${selectedProgram.color};">
         <h4>💭 Reflection Prompt</h4>
-        <p style="font-style: italic;">
-          "What is one small step I can take today to honor myself and my journey?"
-        </p>
+        <p style="font-style: italic;">"${content.reflection}"</p>
       </div>
 
       <p class="mt-4">
@@ -1155,16 +1653,37 @@ function renderChapterContent() {
       </p>
     </div>
 
-    <div class="chapter-actions mt-6" style="display: flex; gap: 12px; justify-content: flex-end;">
-      <button class="btn btn-outline" onclick="backToChapters()">
-        Back to Chapters
-      </button>
-      ${isCompleted 
-        ? `<button class="btn" style="background: ${selectedProgram.color}; color: white;">✓ Completed</button>`
-        : `<button class="btn btn-primary" style="background: ${selectedProgram.color};" onclick="markChapterComplete()">Mark as Complete</button>`
-      }
+    <div class="chapter-actions mt-6" style="display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-outline" onclick="backToChapters()">
+          ← Back to Chapters
+        </button>
+        ${hasPrevious ? `
+          <button class="btn btn-outline" onclick="openChapter('${previousChapter.id}')">
+            ← Previous
+          </button>
+        ` : ''}
+      </div>
+      
+      <div style="display: flex; gap: 12px; align-items: center;">
+        ${!isCompleted 
+          ? `<button class="btn btn-primary" style="background: ${selectedProgram.color};" onclick="markChapterComplete()">Mark as Complete</button>`
+          : `<button class="btn" style="background: ${selectedProgram.color}; color: white;">✓ Completed</button>`
+        }
+        ${hasNext ? `
+          <button class="btn btn-primary" style="background: ${selectedProgram.color}; color: white;" onclick="openChapter('${nextChapter.id}')">
+            Next →
+          </button>
+        ` : `
+          <button class="btn btn-primary" style="background: ${selectedProgram.color}; color: white;" onclick="backToChapters()">
+            Finish Program →
+          </button>
+        `}
+      </div>
     </div>
   `;
+  
+  console.log("Chapter content rendered successfully");
 }
 
 // Navigation functions
@@ -1190,6 +1709,215 @@ function markChapterComplete() {
   }
 }
 
+// ========== COMMUNITY TAB FUNCTIONS (MUST BE BEFORE renderCommunityPage) ==========
+
+// Switch community tab function - make it global
+window.switchCommunityTab = function(tab) {
+  console.log("Switching to tab:", tab);
+  const postsTab = document.getElementById('posts-tab');
+  const sessionsTab = document.getElementById('sessions-tab');
+  const postsContent = document.getElementById('posts-content');
+  const sessionsContent = document.getElementById('sessions-content');
+  
+  console.log("Elements found:", { postsTab, sessionsTab, postsContent, sessionsContent });
+  
+  if (tab === 'posts') {
+    postsTab.classList.add('active');
+    postsTab.style.borderBottom = '2px solid #ec4899';
+    postsTab.style.color = '#ec4899';
+    sessionsTab.classList.remove('active');
+    sessionsTab.style.borderBottom = 'none';
+    sessionsTab.style.color = '#6b7280';
+    postsContent.style.display = 'block';
+    sessionsContent.style.display = 'none';
+  } else {
+    sessionsTab.classList.add('active');
+    sessionsTab.style.borderBottom = '2px solid #ec4899';
+    sessionsTab.style.color = '#ec4899';
+    postsTab.classList.remove('active');
+    postsTab.style.borderBottom = 'none';
+    postsTab.style.color = '#6b7280';
+    postsContent.style.display = 'none';
+    sessionsContent.style.display = 'block';
+    loadSessions();
+  }
+};
+
+window.handleCreateSession = async function(e) {
+  e.preventDefault();
+  console.log("=== CREATE SESSION STARTED ===");
+  
+  const title = document.getElementById('session-title').value;
+  const date = document.getElementById('session-date').value;
+  const time = document.getElementById('session-time').value;
+  const maxAttendees = document.getElementById('session-max-attendees').value;
+  
+  console.log("Form values:", { title, date, time, maxAttendees });
+  console.log("User token:", localStorage.getItem('token') ? 'EXISTS' : 'MISSING');
+  
+  // Use API function
+  console.log("Calling createSessionAPI...");
+  const result = await createSessionAPI(title, date, time, maxAttendees);
+  
+  console.log("API Response:", result);
+  
+  if (result.success) {
+    console.log("✅ Session created successfully:", result.data);
+    showToast('Session created successfully!');
+    e.target.reset();
+    await loadSessions();
+  } else {
+    console.error("❌ Failed to create session:", result.error);
+    showToast('Failed to create session: ' + result.error);
+  }
+};
+
+window.handleSessionAction = async function(sessionId, isAttending) {
+  console.log("Session action:", sessionId, isAttending);
+  
+  let result;
+  if (isAttending) {
+    result = await leaveSessionAPI(sessionId);
+    if (result.success) {
+      showToast('Left session successfully');
+      loadSessions();
+    } else {
+      showToast('Could not leave session: ' + result.error);
+    }
+  } else {
+    result = await joinSessionAPI(sessionId);
+    if (result.success) {
+      showToast('Joined session successfully!');
+      loadSessions();
+    } else {
+      showToast('Could not join session: ' + result.error);
+    }
+  }
+};
+
+window.handleDeleteSession = async function(sessionId) {
+  console.log("Deleting session:", sessionId);
+  if (!confirm('Are you sure you want to delete this session?')) return;
+  
+  const result = await deleteSessionAPI(sessionId);
+  if (result.success) {
+    showToast('Session deleted successfully');
+    loadSessions();
+  } else {
+    showToast('Could not delete session: ' + result.error);
+  }
+};
+
+async function loadSessions() {
+  console.log("=== LOAD SESSIONS STARTED ===");
+  const container = document.getElementById('sessions-container');
+  if (!container) {
+    console.error("❌ Sessions container not found");
+    return;
+  }
+  
+  container.innerHTML = '<p>Loading sessions...</p>';
+  
+  console.log("Calling getSessions API...");
+  const result = await getSessions();
+  console.log("getSessions result:", result);
+  
+  if (!result.success) {
+    console.error("❌ Failed to load sessions:", result.error);
+    container.innerHTML = '<p>Failed to load sessions. ' + result.error + '</p>';
+    return;
+  }
+  
+  console.log("✅ Sessions loaded:", result.data);
+  const sessions = result.data;
+  const user = getCurrentUser();
+  
+  console.log("Current user:", user);
+  console.log("Total sessions:", sessions.length);
+  
+  console.log("Found sessions:", sessions);
+  
+  if (sessions.length === 0) {
+    container.innerHTML = '<p>No sessions yet. Create the first one!</p>';
+    return;
+  }
+  
+  // Sort sessions by date/time
+  sessions.sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
+  
+  container.innerHTML = '';
+  
+  sessions.forEach(session => {
+    const sessionDiv = document.createElement('div');
+    sessionDiv.className = 'post-card';
+    const isCreator = session.userId === user.id;
+    const isAttending = session.attendees.some(a => a.userId === user.id);
+    const isFull = session.attendees.length >= session.maxAttendees;
+    
+    const sessionDate = new Date(session.date + ' ' + session.time);
+    const formattedDate = sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const formattedTime = sessionDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    
+    // Get creator name from user object
+    const creatorName = session.user ? session.user.name : 'Unknown';
+    
+    sessionDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">${session.title}</h3>
+          <p style="color: #6b7280; font-size: 0.875rem;">Created by ${creatorName}</p>
+        </div>
+        ${isCreator ? `
+          <button onclick="handleDeleteSession(${session.id})" style="padding: 0.5rem; background: none; border: none; cursor: pointer; color: #dc2626;" title="Delete session">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        ` : ''}
+      </div>
+      
+      <div style="display: grid; gap: 0.5rem; margin-bottom: 1rem; color: #374151;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>${formattedDate} at ${formattedTime}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>${session.attendees.length} / ${session.maxAttendees} attending</span>
+        </div>
+      </div>
+      
+      ${!isCreator ? `
+        <button 
+          onclick="handleSessionAction(${session.id}, ${isAttending})" 
+          class="btn ${isAttending ? 'btn-outline' : 'btn-primary'}"
+          ${isFull && !isAttending ? 'disabled' : ''}
+        >
+          ${isAttending ? 'Leave Session' : (isFull ? 'Session Full' : 'Join Session')}
+        </button>
+      ` : `
+        <span style="display: inline-block; padding: 0.5rem 1rem; background: #f3f4f6; border-radius: 0.5rem; color: #374151; font-size: 0.875rem;">
+          You're hosting this session
+        </span>
+      `}
+    `;
+    container.appendChild(sessionDiv);
+  });
+  
+  console.log("Sessions loaded successfully");
+}
+
 // ========== COMMUNITY PAGE ==========
 function renderCommunityPage() {
   const communityPage = document.getElementById('community-page');
@@ -1207,6 +1935,14 @@ function renderCommunityPage() {
               </div>
               <span class="font-semibold">HeArtSpace</span>
             </div>
+
+ <!-- Hamburger Menu Button -->
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+
             <div class="nav-links">
               <button class="nav-link" onclick="navigate('dashboard')">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1259,27 +1995,72 @@ function renderCommunityPage() {
         </p>
       </div>
 
-      <!-- Create Post -->
-      <div class="create-post-card mb-6">
-        <div class="post-form">
-          <div class="avatar" id="user-avatar"></div>
-          <div style="flex: 1;">
-            <textarea 
-              id="new-post-textarea" 
-              class="post-textarea" 
-              placeholder="Share your thoughts, insights, or questions with the community..."
-            ></textarea>
-            <div class="post-actions mt-3">
-              <button class="btn btn-primary" onclick="handleCreatePost()">
-                Share
-              </button>
+      <!-- Tabs -->
+      <div style="display: flex; gap: 1rem; border-bottom: 2px solid #e5e7eb; margin-bottom: 2rem;">
+        <button id="posts-tab" class="tab-button active" onclick="switchCommunityTab('posts')" style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 500; border-bottom: 2px solid #ec4899; margin-bottom: -2px; color: #ec4899;">
+          Posts
+        </button>
+        <button id="sessions-tab" class="tab-button" onclick="switchCommunityTab('sessions')" style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 500; color: #6b7280;">
+          Sessions
+        </button>
+      </div>
+
+      <!-- Posts Tab Content -->
+      <div id="posts-content">
+        <!-- Create Post -->
+        <div class="create-post-card mb-6">
+          <div class="post-form">
+            <div class="avatar" id="user-avatar"></div>
+            <div style="flex: 1;">
+              <textarea 
+                id="new-post-textarea" 
+                class="post-textarea" 
+                placeholder="Share your thoughts, insights, or questions with the community..."
+              ></textarea>
+              <div class="post-actions mt-3">
+                <button class="btn btn-primary" onclick="handleCreatePost()">
+                  Share
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Posts Container -->
+        <div id="posts-container"></div>
       </div>
 
-      <!-- Posts Container -->
-      <div id="posts-container"></div>
+      <!-- Sessions Tab Content -->
+      <div id="sessions-content" style="display: none;">
+        <!-- Create Session -->
+        <div class="create-post-card mb-6">
+          <h3 class="mb-4">Create a Session</h3>
+          <form id="create-session-form" style="display: grid; gap: 1rem;">
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Session Title</label>
+              <input type="text" id="session-title" class="form-input" placeholder="e.g., Group Meditation" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Date</label>
+                <input type="date" id="session-date" class="form-input" required>
+              </div>
+              <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Time</label>
+                <input type="time" id="session-time" class="form-input" required>
+              </div>
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Max Attendees</label>
+              <input type="number" id="session-max-attendees" class="form-input" placeholder="e.g., 20" min="2" max="100" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Session</button>
+          </form>
+        </div>
+
+        <!-- Sessions List -->
+        <div id="sessions-container"></div>
+      </div>
     </div>
   `;
   
@@ -1288,6 +2069,15 @@ function renderCommunityPage() {
   
   // Setup listeners after a short delay to ensure DOM is ready
   setTimeout(() => {
+
+ const createSessionForm = document.getElementById('create-session-form');
+    if (createSessionForm) {
+      console.log("✅ Attaching submit handler to create-session-form");
+      createSessionForm.addEventListener('submit', handleCreateSession);
+    } else {
+      console.error("❌ create-session-form not found!");
+    }
+
     setupPageListeners();
   }, 100);
 }
@@ -1319,6 +2109,9 @@ async function loadPosts() {
         .toUpperCase()
         .slice(0, 2);
       
+      const currentUser = getCurrentUser();
+      const isMyPost = post.user.id === currentUser.id;
+      
       postDiv.innerHTML = `
         <div class="post-header">
           <div class="post-avatar">${initials}</div>
@@ -1326,6 +2119,12 @@ async function loadPosts() {
             <h4>${post.user.name}</h4>
             <small>${new Date(post.createdAt).toLocaleDateString()}</small>
           </div>
+          ${isMyPost ? `<button onclick="deletePost(${post.id})" style="margin-left: auto; padding: 0.5rem; background: none; border: none; cursor: pointer; color: #dc2626;" title="Delete post">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>` : ''}
         </div>
         <p class="post-content">${post.content}</p>
       `;
@@ -1354,6 +2153,32 @@ async function handleCreatePost() {
     loadPosts();
   } else {
     showToast('Failed to create post: ' + result.error);
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm('Are you sure you want to delete this post?')) {
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`http://localhost:3000/api/posts/${postId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      showToast('Post deleted successfully');
+      loadPosts();
+    } else {
+      showToast('Failed to delete post');
+    }
+  } catch (error) {
+    showToast('Error deleting post');
   }
 }
 
@@ -1457,6 +2282,15 @@ function renderGalleryPage() {
             <input type="text" id="artwork-title" class="form-input" required>
           </div>
           <div class="form-group">
+            <label for="artwork-category">Category</label>
+            <select id="artwork-category" class="form-input" required>
+              <option value="">Select a category</option>
+              ${categories.filter(c => c !== 'All').map(category => `
+                <option value="${category}">${category}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="form-group">
             <label for="artwork-description">Description</label>
             <textarea id="artwork-description" class="form-input" rows="3"></textarea>
           </div>
@@ -1494,16 +2328,23 @@ async function loadGallery() {
     const currentUser = getCurrentUser();
     container.innerHTML = '';
     
-    if (result.data.length === 0) {
-      container.innerHTML = '<p>No artworks yet. Be the first to share!</p>';
+    // Filter by selected category
+    let filteredArtworks = result.data;
+    if (selectedCategory !== 'All') {
+      filteredArtworks = result.data.filter(artwork => artwork.category === selectedCategory);
+    }
+    
+    if (filteredArtworks.length === 0) {
+      container.innerHTML = `<p>No artworks in this category yet. ${selectedCategory === 'All' ? 'Be the first to share!' : ''}</p>`;
       return;
     }
     
-    result.data.forEach(artwork => {
+    filteredArtworks.forEach(artwork => {
       const artworkDiv = document.createElement('div');
       artworkDiv.className = 'art-card';
       
       const isLiked = artwork.likes.some(like => like.userId === currentUser.id);
+      const isMyArtwork = artwork.user.id === currentUser.id;
       
       const initials = artwork.user.name
         .split(' ')
@@ -1513,8 +2354,14 @@ async function loadGallery() {
         .slice(0, 2);
       
       artworkDiv.innerHTML = `
-        <div class="art-image-container">
+        <div class="art-image-container" style="position: relative;">
           <img src="${artwork.imageUrl}" alt="${artwork.title}" class="art-image">
+          ${isMyArtwork ? `<button onclick="deleteArtwork(${artwork.id})" style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.5rem; background: rgba(220, 38, 38, 0.9); border: none; border-radius: 0.5rem; cursor: pointer; color: white;" title="Delete artwork">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>` : ''}
         </div>
         <div class="art-details">
           <h3>${artwork.title}</h3>
@@ -1576,6 +2423,32 @@ async function toggleLikeArtwork(artworkId) {
   }
 }
 
+async function deleteArtwork(artworkId) {
+  if (!confirm('Are you sure you want to delete this artwork?')) {
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`http://localhost:3000/api/artworks/${artworkId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      showToast('Artwork deleted successfully');
+      loadGallery();
+    } else {
+      showToast('Failed to delete artwork');
+    }
+  } catch (error) {
+    showToast('Error deleting artwork');
+  }
+}
+
 async function addCommentToArtwork(artworkId) {
   const input = document.getElementById(`comment-${artworkId}`);
   if (!input) return;
@@ -1610,6 +2483,7 @@ function showUploadModal() {
       e.preventDefault();
       
       const title = document.getElementById('artwork-title').value;
+      const category = document.getElementById('artwork-category').value;
       const description = document.getElementById('artwork-description').value;
       const imageFile = document.getElementById('artwork-image').files[0];
       
@@ -1618,8 +2492,14 @@ function showUploadModal() {
         return;
       }
       
+      if (!category) {
+        showToast('Please select a category');
+        return;
+      }
+      
       const formData = new FormData();
       formData.append('title', title);
+      formData.append('category', category);
       formData.append('description', description);
       formData.append('image', imageFile);
       

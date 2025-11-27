@@ -221,3 +221,76 @@ async function updateProgress(moduleId, completed) {
     return { success: false, error: 'Failed to update progress' };
   }
 }
+
+// ========== SESSION FUNCTIONS ==========
+
+async function createSessionAPI(title, date, time, maxAttendees) {
+  try {
+    const response = await fetch(`${API_URL}/sessions`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ title, date, time, maxAttendees })
+    });
+    
+    const data = await response.json();
+    return response.ok ? { success: true, data } : { success: false, error: data.error };
+  } catch (error) {
+    return { success: false, error: 'Failed to create session' };
+  }
+}
+
+async function getSessions() {
+  try {
+    const response = await fetch(`${API_URL}/sessions`);
+    const data = await response.json();
+    
+    console.log("getSessions raw response:", { ok: response.ok, status: response.status, data });
+    
+    return response.ok ? { success: true, data } : { success: false, error: data.error };
+  } catch (error) {
+    console.error("getSessions network error:", error);
+    return { success: false, error: 'Failed to fetch sessions' };
+  }
+}
+
+async function joinSessionAPI(sessionId) {
+  try {
+    const response = await fetch(`${API_URL}/sessions/${sessionId}/join`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    
+    const data = await response.json();
+    return response.ok ? { success: true, data } : { success: false, error: data.error };
+  } catch (error) {
+    return { success: false, error: 'Failed to join session' };
+  }
+}
+
+async function leaveSessionAPI(sessionId) {
+  try {
+    const response = await fetch(`${API_URL}/sessions/${sessionId}/leave`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    
+    const data = await response.json();
+    return response.ok ? { success: true, data } : { success: false, error: data.error };
+  } catch (error) {
+    return { success: false, error: 'Failed to leave session' };
+  }
+}
+
+async function deleteSessionAPI(sessionId) {
+  try {
+    const response = await fetch(`${API_URL}/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    
+    const data = await response.json();
+    return response.ok ? { success: true, data } : { success: false, error: data.error };
+  } catch (error) {
+    return { success: false, error: 'Failed to delete session' };
+  }
+}
