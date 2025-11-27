@@ -27,7 +27,7 @@ function getHeaders(includeAuth = true) {
 
 async function signup(email, password, name) {
   try {
-    const response = await fetch(`${API_URL}/auth/signup`, {
+    const response = await fetch(`${API_URL}/api/auth/signup`, {
       method: 'POST',
       headers: getHeaders(false),
       body: JSON.stringify({ email, password, name })
@@ -49,7 +49,7 @@ async function signup(email, password, name) {
 
 async function signin(email, password) {
   try {
-    const response = await fetch(`${API_URL}/auth/signin`, {
+    const response = await fetch(`${API_URL}/api/auth/signin`, {
       method: 'POST',
       headers: getHeaders(false),
       body: JSON.stringify({ email, password })
@@ -91,7 +91,7 @@ async function uploadArtwork(formData) {
   try {
     const token = getToken();
     
-    const response = await fetch(`${API_URL}/artworks`, {
+    const response = await fetch(`${API_URL}/api/artworks`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -108,7 +108,7 @@ async function uploadArtwork(formData) {
 
 async function getArtworks() {
   try {
-    const response = await fetch(`${API_URL}/artworks`);
+    const response = await fetch(`${API_URL}/api/artworks`);
     const data = await response.json();
     return response.ok ? { success: true, data } : { success: false, error: data.error };
   } catch (error) {
@@ -118,7 +118,7 @@ async function getArtworks() {
 
 async function getArtwork(id) {
   try {
-    const response = await fetch(`${API_URL}/artworks/${id}`);
+    const response = await fetch(`${API_URL}/api/artworks/${id}`);
     const data = await response.json();
     return response.ok ? { success: true, data } : { success: false, error: data.error };
   } catch (error) {
@@ -128,7 +128,7 @@ async function getArtwork(id) {
 
 async function likeArtwork(id) {
   try {
-    const response = await fetch(`${API_URL}/artworks/${id}/like`, {
+    const response = await fetch(`${API_URL}/api/artworks/${id}/like`, {
       method: 'POST',
       headers: getHeaders()
     });
@@ -142,7 +142,7 @@ async function likeArtwork(id) {
 
 async function commentOnArtwork(id, content) {
   try {
-    const response = await fetch(`${API_URL}/artworks/${id}/comments`, {
+    const response = await fetch(`${API_URL}/api/artworks/${id}/comments`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ content })
@@ -159,7 +159,7 @@ async function commentOnArtwork(id, content) {
 
 async function createPost(content) {
   try {
-    const response = await fetch(`${API_URL}/posts`, {
+    const response = await fetch(`${API_URL}/api/posts`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ content })
@@ -174,7 +174,7 @@ async function createPost(content) {
 
 async function getPosts() {
   try {
-    const response = await fetch(`${API_URL}/posts`);
+    const response = await fetch(`${API_URL}/api/posts`);
     const data = await response.json();
     return response.ok ? { success: true, data } : { success: false, error: data.error };
   } catch (error) {
@@ -186,7 +186,7 @@ async function getPosts() {
 
 async function getModules() {
   try {
-    const response = await fetch(`${API_URL}/modules`);
+    const response = await fetch(`${API_URL}/api/modules`);
     const data = await response.json();
     return response.ok ? { success: true, data } : { success: false, error: data.error };
   } catch (error) {
@@ -196,7 +196,7 @@ async function getModules() {
 
 async function getProgress() {
   try {
-    const response = await fetch(`${API_URL}/progress`, {
+    const response = await fetch(`${API_URL}/api/progress`, {
       headers: getHeaders()
     });
     
@@ -209,7 +209,7 @@ async function getProgress() {
 
 async function updateProgress(moduleId, completed) {
   try {
-    const response = await fetch(`${API_URL}/progress`, {
+    const response = await fetch(`${API_URL}/api/progress`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ moduleId, completed })
@@ -226,7 +226,7 @@ async function updateProgress(moduleId, completed) {
 
 async function createSessionAPI(title, date, time, maxAttendees) {
   try {
-    const response = await fetch(`${API_URL}/sessions`, {
+    const response = await fetch(`${API_URL}/api/sessions`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ title, date, time, maxAttendees })
@@ -241,7 +241,7 @@ async function createSessionAPI(title, date, time, maxAttendees) {
 
 async function getSessions() {
   try {
-    const response = await fetch(`${API_URL}/sessions`);
+    const response = await fetch(`${API_URL}/api/sessions`);
     const data = await response.json();
     
     console.log("getSessions raw response:", { ok: response.ok, status: response.status, data });
@@ -255,7 +255,7 @@ async function getSessions() {
 
 async function joinSessionAPI(sessionId) {
   try {
-    const response = await fetch(`${API_URL}/sessions/${sessionId}/join`, {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/join`, {
       method: 'POST',
       headers: getHeaders()
     });
@@ -269,7 +269,7 @@ async function joinSessionAPI(sessionId) {
 
 async function leaveSessionAPI(sessionId) {
   try {
-    const response = await fetch(`${API_URL}/sessions/${sessionId}/leave`, {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}/leave`, {
       method: 'POST',
       headers: getHeaders()
     });
@@ -283,7 +283,7 @@ async function leaveSessionAPI(sessionId) {
 
 async function deleteSessionAPI(sessionId) {
   try {
-    const response = await fetch(`${API_URL}/sessions/${sessionId}`, {
+    const response = await fetch(`${API_URL}/api/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: getHeaders()
     });
