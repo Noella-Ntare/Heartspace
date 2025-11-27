@@ -1,6 +1,6 @@
 // api.js - API Helper Functions for Frontend
 
-const API_URL = 'https://heartspace-backend-noella-ntares-projects.vercel.app/api';
+const API_URL = 'https://heartspace-backend.vercel.app';
 
 // ========== HELPER FUNCTIONS ==========
 
