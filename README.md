@@ -1,4 +1,4 @@
-📄 HeArtSpace — Frontend Documentation (Report-Style README)
+📄 HeArtSpace — Frontend Documentation
 1. Introduction
 
 HeArtSpace is a digital wellness platform designed to support emotional healing through artistic expression, interactive programs, and community engagement.
@@ -146,8 +146,3 @@ Add automated tests
 Implement accessibility standards (WCAG)
 
 Offline caching via Service Workers
-
-10. Licensing and Ownership
-
-This frontend codebase is licensed under the MIT License.
-Copyright © [Your Name].
